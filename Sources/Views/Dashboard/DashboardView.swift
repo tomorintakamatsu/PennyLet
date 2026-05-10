@@ -39,9 +39,13 @@ struct DashboardView: View {
                 }
 
                 SpendHeroCard(summary: viewModel.spendSummary, currency: viewModel.currency, theme: viewModel.theme)
+                    .cardEntrance()
                 QuickStatsRow(summary: viewModel.spendSummary, currency: viewModel.currency)
+                    .cardEntrance()
                 TopCategoriesList(breakdown: viewModel.categoryBreakdown, currency: viewModel.currency)
+                    .cardEntrance()
                 RecentActivityList(transactions: viewModel.recentTransactions, currency: viewModel.currency)
+                    .cardEntrance()
 
                 if viewModel.transactions.isEmpty && !viewModel.isLoadingData {
                     Text(viewModel.loc("No transactions yet"))

@@ -45,5 +45,6 @@ struct TransactionRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(.rect)
     }
 }

@@ -5,6 +5,7 @@ struct TransactionListView: View {
     @State private var searchText = ""
     @State private var filter: FilterType = .all
     @State private var pendingDelete: Transaction?
+    @State private var listOpacity = 0.0
 
     enum FilterType: String, CaseIterable { case all, income, expense }
 
@@ -33,13 +34,15 @@ struct TransactionListView: View {
 
     var body: some View {
         List {
-            ForEach(groupedByDate, id: \.0) { date, items in
+            ForEach(Array(groupedByDate.enumerated()), id: \.element.0) { sectionIndex, group in
+                let (date, items) = group
                 Section {
-                    ForEach(items) { tx in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { itemIndex, tx in
                         TransactionRow(transaction: tx, currency: viewModel.currency)
                             .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            .staggeredEntrance(index: itemIndex)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task { await viewModel.deleteTransaction(tx) }
@@ -63,6 +66,8 @@ struct TransactionListView: View {
             }
         }
         .listStyle(.plain)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: filter)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: searchText)
         .searchable(text: $searchText, prompt: viewModel.loc("Search transactions"))
         .navigationTitle(viewModel.loc("Activity"))
         .toolbar {

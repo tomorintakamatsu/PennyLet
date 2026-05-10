@@ -12,10 +12,14 @@ struct BudgetHealthView: View {
             VStack(spacing: 20) {
                 if let budget = viewModel.currentBudget {
                     budgetOverview(budget)
+                        .modifier(CardEntrance())
                 }
                 pieChartSection
+                    .modifier(CardEntrance())
                 barChartSection
+                    .modifier(CardEntrance())
                 statCardsSection
+                    .modifier(CardEntrance())
             }
             .padding(20)
             .padding(.bottom, 100)

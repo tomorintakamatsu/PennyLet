@@ -13,8 +13,9 @@ struct GoalsView: View {
                     description: Text(viewModel.loc("Set savings goals to track your progress"))
                 )
             } else {
-                ForEach(viewModel.goals) { goal in
+                ForEach(Array(viewModel.goals.enumerated()), id: \.element.id) { index, goal in
                     GoalRow(goal: goal, currency: viewModel.currency, theme: viewModel.theme)
+                        .staggeredEntrance(index: index)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {

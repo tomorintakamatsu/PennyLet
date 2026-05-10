@@ -16,6 +16,7 @@
 		130C228EAD538E57FDD2987F /* View+Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C513DF0D9F8F945774A47B /* View+Keyboard.swift */; };
 		183D392CB6FCF1AA670D07B9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE72A78509591233B5656E8F /* AppViewModel.swift */; };
 		187E5C6555EDFE78B3A1C7C6 /* Base44Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004F88168ED832C754985F8 /* Base44Client.swift */; };
+		1DF171523AB35DDE0F1B03F1 /* AnimationPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9743F3856412BB924335AD /* AnimationPresets.swift */; };
 		2348204715AEB2E0307EFE37 /* SpendCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576A23F91FAD89136F3CF8C5 /* SpendCalculator.swift */; };
 		2795ABFCB3BE5E3D3AC51735 /* ClearSpendApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */; };
 		288DF207B38C368E3E2F2115 /* AnyCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116947EEB5EA974724933766 /* AnyCodable.swift */; };
@@ -69,6 +70,7 @@
 		3422951228859ACA5D46C69C /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
 		380223E91F1A3A1DCF733CCF /* AIFeaturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFeaturesView.swift; sourceTree = "<group>"; };
 		38A9D059ADD2E458EC5E111E /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		3F9743F3856412BB924335AD /* AnimationPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationPresets.swift; sourceTree = "<group>"; };
 		44495D9C0C6A41306CA3C4A0 /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
 		450EF67CB225D18AF28BFDFB /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
 		55C4AC3EFBB280AE4D7AA01C /* SubscriptionTrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionTrackerView.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 		EFE8AD4F897CE1D9E66AC43F /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				3F9743F3856412BB924335AD /* AnimationPresets.swift */,
 				116947EEB5EA974724933766 /* AnyCodable.swift */,
 				9D1589810548E355BD8EB4D5 /* Constants.swift */,
 				3422951228859ACA5D46C69C /* CurrencyFormatter.swift */,
@@ -414,6 +417,7 @@
 				A526891A45CD3EA5465EB782 /* AIFeaturesView.swift in Sources */,
 				E7CE3DE2980FFF8BB41DEC90 /* AddTransactionView.swift in Sources */,
 				DCC711DA29CB9FC38C23378E /* AnalysisHistory.swift in Sources */,
+				1DF171523AB35DDE0F1B03F1 /* AnimationPresets.swift in Sources */,
 				288DF207B38C368E3E2F2115 /* AnyCodable.swift in Sources */,
 				183D392CB6FCF1AA670D07B9 /* AppViewModel.swift in Sources */,
 				7F6A68208817EF0A9C70B46D /* AuthService.swift in Sources */,

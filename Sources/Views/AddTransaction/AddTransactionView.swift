@@ -233,6 +233,8 @@ struct AddTransactionView: View {
                                     category == cat.id ? cat.color : cat.color.opacity(0.12),
                                     in: RoundedRectangle(cornerRadius: 12)
                                 )
+                                .scaleEffect(category == cat.id ? 1.08 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: category)
                             Text(viewModel.loc(cat.label))
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(category == cat.id ? .primary : .secondary)

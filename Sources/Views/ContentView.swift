@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var showAddSheet = false
     @State private var showSettings = false
     @State private var showUpgrade = false
+    @State private var fabScale: CGFloat = 1
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -52,9 +53,18 @@ struct ContentView: View {
                 .tabItem { Label(viewModel.healthTab, systemImage: "heart.fill") }
                 .tag(5)
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selectedTab)
 
             Button {
-                showAddSheet = true
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                    fabScale = 0.85
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.5)) {
+                        fabScale = 1
+                    }
+                    showAddSheet = true
+                }
             } label: {
                 Image(systemName: "plus")
                     .font(.title3.weight(.semibold))
@@ -62,6 +72,7 @@ struct ContentView: View {
                     .frame(width: 56, height: 56)
                     .background(viewModel.theme.primaryColor, in: Circle())
                     .shadow(color: viewModel.theme.primaryColor.opacity(0.4), radius: 10, y: 4)
+                    .scaleEffect(fabScale)
             }
             .padding(.trailing, 20)
             .padding(.bottom, 90)
