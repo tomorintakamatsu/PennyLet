@@ -1,0 +1,23 @@
+{
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/Transactions/TransactionListView.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionListView.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionListView.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionListView.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionListView.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionListView.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/Transactions/TransactionRow.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionRow.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionRow.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionRow.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionRow.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/TransactionRow.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/Upgrade/UpgradeView.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/UpgradeView.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/UpgradeView.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/UpgradeView.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/UpgradeView.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/UpgradeView.swiftdeps"
+  }
+}

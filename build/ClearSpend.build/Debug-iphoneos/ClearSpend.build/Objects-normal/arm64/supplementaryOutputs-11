@@ -1,0 +1,23 @@
+{
+  "/Users/tomorin/ClearSpend-iOS/Sources/Models/SpendSummary.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SpendSummary.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SpendSummary.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SpendSummary.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SpendSummary.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SpendSummary.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Services/SubscriptionDetectionService.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionDetectionService.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionDetectionService.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionDetectionService.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionDetectionService.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionDetectionService.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/Subscriptions/SubscriptionTrackerView.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionTrackerView.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionTrackerView.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionTrackerView.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionTrackerView.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/SubscriptionTrackerView.swiftdeps"
+  }
+}

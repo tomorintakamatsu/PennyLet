@@ -1,0 +1,77 @@
+{
+  "products" : [
+    {
+      "displayName" : "ClearSpend Pro Monthly",
+      "familyShareable" : false,
+      "internalID" : "clearspend_pro_monthly_2",
+      "productType" : "AutoRenewable",
+      "referenceName" : "ClearSpend Pro Monthly",
+      "subscriptionGroupID" : "D33B4606",
+      "subscriptionPeriod" : {
+        "unit" : "P1M",
+        "numberOfUnits" : 1
+      },
+      "subscriptionGroupDisplayName" : "ClearSpend Pro",
+      "localizations" : [
+        {
+          "displayName" : "ClearSpend Pro Monthly",
+          "description" : "Monthly access to all Pro features"
+        }
+      ],
+      "name" : "Monthly",
+      "locales" : [
+        {
+          "locale" : "en_US",
+          "displayName" : "ClearSpend Pro Monthly",
+          "description" : "Monthly access to all Pro features"
+        }
+      ]
+    },
+    {
+      "displayName" : "ClearSpend Pro Yearly",
+      "familyShareable" : false,
+      "internalID" : "clearspend_pro_yearly_2",
+      "productType" : "AutoRenewable",
+      "referenceName" : "ClearSpend Pro Yearly",
+      "subscriptionGroupID" : "D33B4606",
+      "subscriptionPeriod" : {
+        "unit" : "P1Y",
+        "numberOfUnits" : 1
+      },
+      "subscriptionGroupDisplayName" : "ClearSpend Pro",
+      "localizations" : [
+        {
+          "displayName" : "ClearSpend Pro Yearly",
+          "description" : "Yearly access to all Pro features"
+        }
+      ],
+      "name" : "Yearly",
+      "locales" : [
+        {
+          "locale" : "en_US",
+          "displayName" : "ClearSpend Pro Yearly",
+          "description" : "Yearly access to all Pro features"
+        }
+      ]
+    }
+  ],
+  "subscriptionGroups" : [
+    {
+      "id" : "D33B4606",
+      "localizations" : [
+        {
+          "displayName" : "ClearSpend Pro"
+        }
+      ],
+      "name" : "ClearSpend Pro",
+      "subscriptions" : [
+        "clearspend_pro_monthly_2",
+        "clearspend_pro_yearly_2"
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "/Users/tomorin/ClearSpend-iOS/Sources/Services/ProStatusService.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ProStatusService.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ProStatusService.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ProStatusService.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ProStatusService.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ProStatusService.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/AddTransaction/ReceiptScannerView.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ReceiptScannerView.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ReceiptScannerView.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ReceiptScannerView.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ReceiptScannerView.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ReceiptScannerView.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/Dashboard/QuickStatsRow.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/QuickStatsRow.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/QuickStatsRow.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/QuickStatsRow.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/QuickStatsRow.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/QuickStatsRow.swiftdeps"
+  }
+}

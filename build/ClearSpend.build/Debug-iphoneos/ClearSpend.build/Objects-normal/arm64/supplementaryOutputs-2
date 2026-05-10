@@ -1,0 +1,30 @@
+{
+  "/Users/tomorin/ClearSpend-iOS/Sources/AppViewModel.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AppViewModel.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AppViewModel.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AppViewModel.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AppViewModel.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AppViewModel.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Models/Budget.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Budget.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Budget.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Budget.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Budget.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Budget.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Services/AuthService.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AuthService.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AuthService.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AuthService.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AuthService.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/AuthService.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Services/Base44Client.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Base44Client.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Base44Client.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Base44Client.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Base44Client.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Base44Client.swiftdeps"
+  }
+}

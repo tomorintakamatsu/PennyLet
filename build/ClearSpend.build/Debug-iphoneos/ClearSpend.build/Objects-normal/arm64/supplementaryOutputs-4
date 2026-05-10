@@ -1,0 +1,23 @@
+{
+  "/Users/tomorin/ClearSpend-iOS/Sources/Utilities/Constants.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Constants.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Constants.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Constants.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Constants.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/Constants.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Utilities/CurrencyFormatter.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/CurrencyFormatter.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/CurrencyFormatter.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/CurrencyFormatter.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/CurrencyFormatter.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/CurrencyFormatter.swiftdeps"
+  },
+  "/Users/tomorin/ClearSpend-iOS/Sources/Views/ContentView.swift" : {
+    "const-values" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ContentView.dia",
+    "object" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/tomorin/ClearSpend-iOS/build/ClearSpend.build/Debug-iphoneos/ClearSpend.build/Objects-normal/arm64/ContentView.swiftdeps"
+  }
+}
