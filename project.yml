@@ -10,7 +10,7 @@ settings:
     SWIFT_VERSION: "6.0"
     TARGETED_DEVICE_FAMILY: "1"
     MARKETING_VERSION: "4.0"
-    CURRENT_PROJECT_VERSION: "2"
+    CURRENT_PROJECT_VERSION: "3"
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
     INFOPLIST_KEY_UILaunchScreen_Generation: true

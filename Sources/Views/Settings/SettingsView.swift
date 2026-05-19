@@ -39,6 +39,7 @@ struct SettingsView: View {
             analysisSection
             dataSection
             accountSection
+            legalSection
         }
         .navigationTitle(viewModel.settingsTitle)
         .keyboardDoneButton(viewModel.loc("Done"))
@@ -326,6 +327,17 @@ struct SettingsView: View {
                 showResetConfirm = true
             } label: {
                 Label(viewModel.loc("Export & Reset"), systemImage: "arrow.counterclockwise")
+            }
+        }
+    }
+
+    private var legalSection: some View {
+        Section {
+            Link(destination: URL(string: "https://tomorintakamatsu.github.io/clearspend-privacy/privacy-policy.pdf")!) {
+                Label(viewModel.loc("Privacy Policy"), systemImage: "hand.raised.fill")
+            }
+            Link(destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!) {
+                Label(viewModel.loc("Terms of Use (EULA)"), systemImage: "doc.text.fill")
             }
         }
     }

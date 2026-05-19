@@ -4,133 +4,164 @@ import StoreKit
 struct UpgradeView: View {
     @Environment(AppViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var isYearly = true
+
+    @State private var products: [StoreKit.Product] = []
+    @State private var isLoading = true
     @State private var isPurchasing = false
-    @State private var isRestoring = false
-    @State private var restoreMessage: String?
+    @State private var isYearly = true
     @State private var purchaseError: String?
+    @State private var restoreMessage: String?
+
+    private var monthly: StoreKit.Product? { products.first(where: { $0.id == APIConstants.monthlyProductID }) }
+    private var yearly: StoreKit.Product?  { products.first(where: { $0.id == APIConstants.yearlyProductID  }) }
+    private var selectedProduct: StoreKit.Product? { isYearly ? (yearly ?? monthly) : (monthly ?? yearly) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.yellow)
+                VStack(spacing: 22) {
+                    // Header
+                    VStack(spacing: 10) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 40)).foregroundStyle(.yellow)
+                        Text(viewModel.loc("ClearSpend Pro"))
+                            .font(.title.weight(.bold))
+                        Text(viewModel.loc("Get more AI analyses, visual charts, unlimited receipt scanning, and deeper spending insights."))
+                            .multilineTextAlignment(.center).foregroundStyle(.secondary)
+                            .padding(.horizontal, 28)
+                    }.padding(.top, 16)
 
-                    Text(viewModel.loc("ClearSpend Pro"))
-                        .font(.title.weight(.bold))
+                    // Pricing
+                    if isLoading {
+                        ProgressView().padding(20)
+                    } else {
+                        pricingSection
 
-                    Text(viewModel.loc("Get more AI analyses, visual charts, unlimited receipt scanning, and deeper spending insights."))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 32)
-
-                    Picker(viewModel.loc("Plan"), selection: $isYearly) {
-                        Text(viewModel.loc("Monthly")).tag(false)
-                        Text(viewModel.loc("Yearly (save 40%)")).tag(true)
+                        // Plan picker
+                        Picker(viewModel.loc("Plan"), selection: $isYearly) {
+                            Text(viewModel.loc("Monthly")).tag(false)
+                            Text(viewModel.loc("Yearly (save 40%)")).tag(true)
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 32)
 
-                    VStack(spacing: 16) {
-                        priceCard
-                        featuresList
-                        comparisonTable
-                    }
-                    .padding(.horizontal, 20)
+                    // Features
+                    featuresList
 
-                    if !viewModel.isGuestMode {
+                    // Comparison
+                    comparisonTable
+
+                    // Subscribe button
+                    if !viewModel.isGuestMode, let product = selectedProduct {
                         Button {
-                            Task { await purchase() }
+                            Task { await purchase(product) }
                         } label: {
                             HStack {
                                 if isPurchasing { ProgressView().tint(.white) }
                                 Text(isPurchasing ? viewModel.loc("Processing...") : viewModel.loc("Subscribe"))
                             }
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(.yellow, in: RoundedRectangle(cornerRadius: 16))
+                            .font(.headline).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 14)
+                            .background(.yellow, in: RoundedRectangle(cornerRadius: 14))
                         }
                         .disabled(isPurchasing)
-                        .padding(.horizontal, 20)
                     }
 
                     if let msg = purchaseError {
-                        Text(msg)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
+                        Text(msg).font(.caption).foregroundStyle(.red)
                     }
+
+                    // Restore
+                    Button(viewModel.loc("Restore Purchases")) {
+                        Task { await restore() }
+                    }
+                    .font(.subheadline).foregroundStyle(viewModel.theme.primaryColor)
 
                     if let msg = restoreMessage {
-                        Text(msg)
-                            .font(.caption)
+                        Text(msg).font(.caption)
                             .foregroundStyle(msg.contains("✅") ? .green : .secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
                     }
 
-                    Button {
-                        Task { await restore() }
-                    } label: {
-                        HStack {
-                            if isRestoring {
-                                ProgressView().tint(viewModel.theme.primaryColor)
-                            }
-                            Text(isRestoring ? viewModel.loc("Processing...") : viewModel.loc("Restore Purchases"))
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(viewModel.theme.primaryColor)
-                    }
-                    .disabled(isRestoring)
+                    // Policy links
+                    VStack(spacing: 6) {
+                        Link(viewModel.loc("Privacy Policy"),
+                             destination: URL(string: "https://tomorintakamatsu.github.io/clearspend-privacy/privacy-policy.pdf")!)
+                            .font(.caption2)
+                        Link(viewModel.loc("Terms of Use (EULA)"),
+                             destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                            .font(.caption2)
+                    }.padding(.bottom, 24)
                 }
-                .padding(.top, 20)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 20)
             }
             .navigationTitle(viewModel.loc("Upgrade"))
             .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private var priceCard: some View {
-        let fallback = isYearly ? viewModel.loc("$39.99/yr") : viewModel.loc("$4.99/mo")
-        return VStack(spacing: 4) {
-            Text(fallback)
-                .font(.system(size: 36, weight: .bold, design: .rounded))
-            if isYearly {
-                Text(viewModel.loc("Just $3.33/month"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(viewModel.loc("Done")) { dismiss() }.fontWeight(.semibold)
+                }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .task { await loadProducts() }
     }
 
+    // MARK: - Pricing
+
+    private var pricingSection: some View {
+        HStack(spacing: 12) {
+            if let m = monthly {
+                priceCard(product: m, period: viewModel.loc("Monthly"), price: m.displayPrice,
+                          selected: !isYearly)
+                    .onTapGesture { isYearly = false }
+            }
+            if let y = yearly {
+                priceCard(product: y, period: viewModel.loc("Yearly"), price: y.displayPrice,
+                          badge: viewModel.loc("Save 40%"), selected: isYearly)
+                    .onTapGesture { isYearly = true }
+            }
+        }
+    }
+
+    private func priceCard(product: StoreKit.Product, period: String, price: String,
+                           badge: String? = nil, selected: Bool = false) -> some View {
+        VStack(spacing: 4) {
+            // Reserve space for badge so both cards have equal height
+            ZStack {
+                if let badge {
+                    Text(badge).font(.caption2.weight(.bold))
+                        .foregroundStyle(.white).padding(.horizontal, 8).padding(.vertical, 2)
+                        .background(.yellow, in: Capsule())
+                }
+            }
+            .frame(height: 18)
+
+            Text(price).font(.title2.weight(.bold).monospacedDigit())
+            Text(period).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 14)
+        .background(selected ? Color.yellow.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(selected ? Color.yellow : Color.gray.opacity(0.3), lineWidth: selected ? 2 : 1)
+        )
+    }
+
+    // MARK: - Feature List
+
     private var featuresList: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(proFeatures, id: \.0) { icon, title, desc in
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(.yellow)
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.subheadline.weight(.semibold))
-                        Text(desc)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    Image(systemName: icon).font(.callout).foregroundStyle(.yellow).frame(width: 22)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title).font(.subheadline.weight(.semibold))
+                        Text(desc).font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
         }
-        .padding(18)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var proFeatures: [(String, String, String)] {
@@ -145,23 +176,16 @@ struct UpgradeView: View {
         ]
     }
 
+    // MARK: - Comparison Table
+
     private var comparisonTable: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("").frame(maxWidth: .infinity, alignment: .leading)
-                Text(viewModel.loc("Free"))
-                    .font(.caption.weight(.semibold))
-                    .frame(width: 60)
-                Text(viewModel.loc("Pro"))
-                    .font(.caption.weight(.semibold))
-                    .frame(width: 60)
-                    .foregroundStyle(.yellow)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            Divider().background(.secondary.opacity(0.3))
-
+                Text(viewModel.loc("Free")).font(.caption.weight(.semibold)).frame(width: 52)
+                Text(viewModel.loc("Pro")).font(.caption.weight(.semibold)).frame(width: 52).foregroundStyle(.yellow)
+            }.padding(.horizontal, 12).padding(.vertical, 8)
+            Divider()
             comparisonRow(icon: "sparkles", label: viewModel.dailyAnalysisTitle, free: "5\(viewModel.loc("/mo"))", pro: "30\(viewModel.loc("/mo"))")
             comparisonRow(icon: "chart.bar.fill", label: viewModel.weeklyRecapTitle, free: "1\(viewModel.loc("/mo"))", pro: "15\(viewModel.loc("/mo"))")
             comparisonRow(icon: "doc.text.magnifyingglass", label: viewModel.monthlyInsightTitle, free: "—", pro: "10\(viewModel.loc("/mo"))")
@@ -172,53 +196,39 @@ struct UpgradeView: View {
             comparisonRow(icon: "tag.fill", label: viewModel.loc("Custom Categories"), free: "—", pro: "✓")
             comparisonRow(icon: "chart.pie.fill", label: viewModel.loc("Visual Pie Charts"), free: "—", pro: "✓")
         }
-        .font(.caption)
-        .padding(.vertical, 10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .font(.caption2).padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func comparisonRow(icon: String, label: String, free: String, pro: String) -> some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                Text(label)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(free)
-                    .frame(width: 60)
-                    .foregroundStyle(.secondary)
-                Text(pro)
-                    .frame(width: 60)
-                    .foregroundStyle(.yellow)
-                    .fontWeight(.semibold)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            Divider().background(.secondary.opacity(0.15)).padding(.leading, 48)
+            HStack(spacing: 8) {
+                Image(systemName: icon).font(.caption2).foregroundStyle(.secondary).frame(width: 16)
+                Text(label).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                Text(free).frame(width: 52).foregroundStyle(.secondary)
+                Text(pro).frame(width: 52).foregroundStyle(.yellow).fontWeight(.semibold)
+            }.padding(.horizontal, 12).padding(.vertical, 6)
+            Divider().padding(.leading, 36)
         }
     }
 
-    // MARK: - Purchase
+    // MARK: - StoreKit
 
-    private func purchase() async {
+    private func loadProducts() async {
+        isLoading = true
+        let ids = [APIConstants.monthlyProductID, APIConstants.yearlyProductID]
+        do {
+            let loaded = try await StoreKit.Product.products(for: ids)
+            products = loaded.sorted { ($0.price ?? 0) < ($1.price ?? 0) }
+        } catch {
+            purchaseError = viewModel.loc("Unable to load pricing. Please try again.")
+        }
+        isLoading = false
+    }
+
+    private func purchase(_ product: StoreKit.Product) async {
         isPurchasing = true
         purchaseError = nil
-        let productID = isYearly ? APIConstants.yearlyProductID : APIConstants.monthlyProductID
-
-        // Load product off main actor
-        let products = await Task.detached {
-            try? await StoreKit.Product.products(for: [productID])
-        }.value
-
-        guard let product = products?.first else {
-            purchaseError = viewModel.loc("Unable to load pricing. Please try again.")
-            isPurchasing = false
-            return
-        }
-
         do {
             let result = try await product.purchase()
             switch result {
@@ -226,18 +236,13 @@ struct UpgradeView: View {
                 if case .verified(let txn) = verification {
                     await txn.finish()
                     viewModel.hasProSubscription = true
-                    purchaseError = nil
-                    isPurchasing = false
                     restoreMessage = "✅ \(viewModel.loc("Pro unlocked! Refreshing..."))"
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
                     dismiss()
                 }
-            case .userCancelled:
-                break
-            case .pending:
-                purchaseError = "Purchase pending approval."
-            @unknown default:
-                break
+            case .userCancelled: break
+            case .pending: purchaseError = viewModel.loc("Purchase pending approval.")
+            @unknown default: break
             }
         } catch {
             purchaseError = error.localizedDescription
@@ -245,22 +250,17 @@ struct UpgradeView: View {
         isPurchasing = false
     }
 
-    // MARK: - Restore
-
     private func restore() async {
-        isRestoring = true
         restoreMessage = nil
-        // Check Apple ID subscriptions via StoreKit
-        var foundPro = false
+        var found = false
         for await result in StoreKit.Transaction.all {
             guard case .verified(let txn) = result,
                   txn.productType == .autoRenewable || txn.productType == .nonRenewable,
                   txn.revocationDate == nil,
                   txn.expirationDate.map({ $0 > Date() }) ?? true else { continue }
-            foundPro = true
-            break
+            found = true; break
         }
-        if foundPro {
+        if found {
             viewModel.hasProSubscription = true
             restoreMessage = "✅ \(viewModel.loc("Purchase restored! Pro features are now unlocked."))"
             try? await Task.sleep(nanoseconds: 1_500_000_000)
@@ -268,6 +268,5 @@ struct UpgradeView: View {
         } else {
             restoreMessage = viewModel.loc("No active subscription found.")
         }
-        isRestoring = false
     }
 }

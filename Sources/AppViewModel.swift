@@ -56,12 +56,6 @@ final class AppViewModel {
         if let data = prefs.data(forKey: "local_budgets"),
            let b = try? decoder.decode([Budget].self, from: data), !b.isEmpty {
             budgets = b
-        } else if budgets.isEmpty {
-            budgets = [Budget(
-                id: UUID().uuidString, monthlyIncome: 5000,
-                currency: currency, language: language, theme: theme.rawValue,
-                colorMode: colorMode.rawValue, font: font.rawValue
-            )]
         }
         if let data = prefs.data(forKey: "local_transactions"),
            let t = try? decoder.decode([Transaction].self, from: data) {

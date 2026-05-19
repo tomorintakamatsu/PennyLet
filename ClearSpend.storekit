@@ -3,7 +3,7 @@
     {
       "displayName" : "ClearSpend Pro Monthly",
       "familyShareable" : false,
-      "internalID" : "clearspend_pro_monthly_2",
+      "internalID" : "clearspend_pro_monthly_3",
       "productType" : "AutoRenewable",
       "referenceName" : "ClearSpend Pro Monthly",
       "subscriptionGroupID" : "D33B4606",
@@ -30,7 +30,7 @@
     {
       "displayName" : "ClearSpend Pro Yearly",
       "familyShareable" : false,
-      "internalID" : "clearspend_pro_yearly_2",
+      "internalID" : "clearspend_pro_yearly_3",
       "productType" : "AutoRenewable",
       "referenceName" : "ClearSpend Pro Yearly",
       "subscriptionGroupID" : "D33B4606",
@@ -65,8 +65,8 @@
       ],
       "name" : "ClearSpend Pro",
       "subscriptions" : [
-        "clearspend_pro_monthly_2",
-        "clearspend_pro_yearly_2"
+        "clearspend_pro_monthly_3",
+        "clearspend_pro_yearly_3"
       ]
     }
   ],

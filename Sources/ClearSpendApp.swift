@@ -23,7 +23,7 @@ struct ClearSpendApp: App {
         WindowGroup {
             Group {
                 if viewModel.isLoading {
-                    LaunchScreen()
+                    Color.clear
                 } else if viewModel.needsOnboarding {
                     WelcomeView()
                         .environment(viewModel)
@@ -41,20 +41,6 @@ struct ClearSpendApp: App {
             .tint(viewModel.theme.primaryColor)
             .preferredColorScheme(viewModel.colorMode.colorScheme)
             .fontDesign(viewModel.font.design)
-        }
-    }
-}
-
-struct LaunchScreen: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "dollarsign.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.green)
-            Text("ClearSpend")
-                .font(.largeTitle.weight(.bold))
-            ProgressView()
-                .padding(.top, 8)
         }
     }
 }

@@ -32,6 +32,7 @@
 		6A10BFC50B7AA3039DFFC3E1 /* Date+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9843553DA32EFD54DEE2D0E /* Date+Extensions.swift */; };
 		6A462D0E44570F012A414921 /* CurrencyRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6128E244814947692041C605 /* CurrencyRateService.swift */; };
 		78693C5813CE5496B4F086C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63323319571AD5414DDA7BF4 /* SettingsView.swift */; };
+		7BD9CD59B7F26B9A650CE40E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */; };
 		7F6A68208817EF0A9C70B46D /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE903729902BE39166A2BED /* AuthService.swift */; };
 		84A6A15805B9FEA760FBFE21 /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36C980CE7C328DB5F130C49 /* SkeletonView.swift */; };
 		858667D40649A883EC90F3A8 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7416601FBA65A4DF03C2794A /* NotificationService.swift */; };
@@ -80,6 +81,7 @@
 		60E088D4508847FBA938AEA3 /* AnalysisHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistory.swift; sourceTree = "<group>"; };
 		6128E244814947692041C605 /* CurrencyRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyRateService.swift; sourceTree = "<group>"; };
 		63323319571AD5414DDA7BF4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7004F88168ED832C754985F8 /* Base44Client.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base44Client.swift; sourceTree = "<group>"; };
 		7416601FBA65A4DF03C2794A /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearSpendApp.swift; sourceTree = "<group>"; };
@@ -97,7 +99,7 @@
 		C8929A8C9FF012E6D4F8399D /* Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Goal.swift; sourceTree = "<group>"; };
 		D27D489992FF4E89C4D0D5C3 /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
 		D420E6E3F8A97BEDB13F90B9 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
-		D4464138416100CC75D9176E /* ClearSpend.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClearSpend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D4464138416100CC75D9176E /* ClearSpend.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClearSpend.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8CAC5FA824E8F1E49CEFA3A /* SpendSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendSummary.swift; sourceTree = "<group>"; };
 		E3ABF15C5896092F4D6FAF9F /* ProStatusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProStatusService.swift; sourceTree = "<group>"; };
 		ED1BD4C45FDBA9D5BB228E91 /* GuestUpgradeModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestUpgradeModal.swift; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				EE72A78509591233B5656E8F /* AppViewModel.swift */,
 				9E7C1E97FA1DA73ABCF54132 /* Assets.xcassets */,
 				7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */,
+				6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */,
 				D1957AA0782D52E8C5CC21F6 /* Extensions */,
 				81AB46CB90B4A4B3544ACA8B /* Models */,
 				BF4565FF10E238A4784A869B /* Services */,
@@ -349,7 +352,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					08A45B175965F6095C8A5D5F = {
 						DevelopmentTeam = 776XFU3GK7;
@@ -382,6 +385,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D2237C26CDB74F2B96DC3E4 /* Assets.xcassets in Resources */,
+				7BD9CD59B7F26B9A650CE40E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -476,7 +480,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 776XFU3GK7;
 				INFOPLIST_KEY_CFBundleDisplayName = ClearSpend;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -523,10 +526,12 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 776XFU3GK7;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -551,6 +556,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
@@ -592,10 +598,12 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 776XFU3GK7;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -627,6 +635,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
@@ -642,7 +651,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 776XFU3GK7;
 				INFOPLIST_KEY_CFBundleDisplayName = ClearSpend;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
