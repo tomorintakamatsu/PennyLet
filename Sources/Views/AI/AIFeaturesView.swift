@@ -654,8 +654,9 @@ struct AIFeaturesView: View {
     }
 
     private func generate(for tab: Int, operation: @escaping () async throws -> AppViewModel.AIResult) async {
+        let start = Date()
         if generationStartedAt.indices.contains(tab) {
-            generationStartedAt[tab] = Date()
+            generationStartedAt[tab] = start
         }
         tabLoading[tab] = true
         tabErrors[tab] = nil
@@ -664,6 +665,7 @@ struct AIFeaturesView: View {
             if generationStartedAt.indices.contains(tab) {
                 generationStartedAt[tab] = nil
             }
+            recordGenerationDuration(Date().timeIntervalSince(start), for: tab)
         }
 
         // Clear current before generating new
@@ -682,24 +684,36 @@ struct AIFeaturesView: View {
     }
 
     private func estimatedGenerationDuration(for tab: Int) -> TimeInterval {
-        switch tab {
-        case 0: return 18
-        case 1: return 28
-        case 2: return 36
-        case 3: return 30
-        default: return 18
-        }
+        let defaults: [TimeInterval] = [12, 18, 24, 20]
+        let fallback = defaults.indices.contains(tab) ? defaults[tab] : 14
+        let learned = UserDefaults.standard.double(forKey: generationEstimateKey(for: tab))
+        let estimate = learned > 0 ? learned * 1.15 : fallback
+        return min(max(estimate, 8), 75)
     }
 
     private func estimatedProgress(elapsed: TimeInterval, estimate: TimeInterval) -> Double {
         let estimate = max(estimate, 1)
         if elapsed <= estimate {
             let ratio = max(0, elapsed / estimate)
-            return max(0.08, min(0.9, ratio * 0.9))
+            let eased = 1 - pow(1 - ratio, 1.65)
+            return max(0.06, min(0.96, eased * 0.96))
         }
 
-        let extraRatio = min((elapsed - estimate) / 90, 1)
-        return min(0.99, 0.9 + (0.09 * extraRatio))
+        let extraRatio = min((elapsed - estimate) / max(estimate, 20), 1)
+        return min(0.995, 0.96 + (0.035 * extraRatio))
+    }
+
+    private func recordGenerationDuration(_ duration: TimeInterval, for tab: Int) {
+        guard duration > 1 else { return }
+        let key = generationEstimateKey(for: tab)
+        let previous = UserDefaults.standard.double(forKey: key)
+        let clamped = min(max(duration, 4), 90)
+        let updated = previous > 0 ? (previous * 0.65 + clamped * 0.35) : clamped
+        UserDefaults.standard.set(updated, forKey: key)
+    }
+
+    private func generationEstimateKey(for tab: Int) -> String {
+        "ai_generation_duration_tab_\(tab)"
     }
 
     private func progressBadgeText(progress: Double, isTakingLonger: Bool) -> String {

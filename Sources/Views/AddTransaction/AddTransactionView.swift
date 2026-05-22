@@ -4,6 +4,8 @@ struct AddTransactionView: View {
     @Environment(AppViewModel.self) private var viewModel
     @Environment(\.dismiss) private var dismiss
 
+    private let startAsSubscription: Bool
+
     @State private var type: Transaction.TransactionType = .expense
     @State private var amount = ""
     @State private var category = "food"
@@ -19,6 +21,15 @@ struct AddTransactionView: View {
     @State private var conversionRate: Double?
     @State private var isConverting = false
     @State private var conversionError: String?
+    @State private var isSubscription = false
+    @State private var billingInterval: RecurringSubscription.BillingInterval = .monthly
+    @State private var customIntervalDays = 30
+
+    init(startAsSubscription: Bool = false) {
+        self.startAsSubscription = startAsSubscription
+        _isSubscription = State(initialValue: startAsSubscription)
+        _category = State(initialValue: startAsSubscription ? "subscriptions" : "food")
+    }
 
     private var datePickerLocale: Locale {
         switch viewModel.language {
@@ -52,6 +63,10 @@ struct AddTransactionView: View {
                     conversionPreview
                     quickActions
                     categoryGrid
+                    if isSubscription {
+                        subscriptionDetails
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     noteAndDate
                     Spacer(minLength: 20)
                     saveButton
@@ -69,7 +84,13 @@ struct AddTransactionView: View {
                     Button(viewModel.cancelLabel) { dismiss() }
                 }
             }
-            .onAppear { isAmountFocused = true }
+            .onAppear {
+                isAmountFocused = true
+                if startAsSubscription {
+                    type = .expense
+                    category = "subscriptions"
+                }
+            }
         }
         .sheet(isPresented: $showReceiptScanner) {
             ReceiptScannerView { resultAmount, resultCategory, resultMerchant in
@@ -84,16 +105,40 @@ struct AddTransactionView: View {
     // MARK: - Quick Actions
 
     private var quickActions: some View {
-        Button {
-            showReceiptScanner = true
-        } label: {
-            Label(viewModel.scanReceiptLabel, systemImage: "doc.text.viewfinder")
-                .font(.subheadline.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        HStack(spacing: 10) {
+            Button {
+                showReceiptScanner = true
+            } label: {
+                Label(viewModel.scanReceiptLabel, systemImage: "doc.text.viewfinder")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                    isSubscription.toggle()
+                    if isSubscription {
+                        type = .expense
+                        category = "subscriptions"
+                    }
+                }
+            } label: {
+                Label(viewModel.loc("Subscription"), systemImage: isSubscription ? "repeat.circle.fill" : "repeat")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(isSubscription ? .white : .primary)
+                    .background(
+                        isSubscription ? viewModel.theme.primaryColor : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 12)
+                    )
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Existing Views
@@ -105,6 +150,9 @@ struct AddTransactionView: View {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                         type = t
                         category = t == .income ? "salary" : "food"
+                        if t == .income {
+                            isSubscription = false
+                        }
                     }
                 } label: {
                     Label(
@@ -296,7 +344,7 @@ struct AddTransactionView: View {
                 Image(systemName: "pencil.line")
                     .foregroundStyle(.secondary)
                     .frame(width: 16)
-                TextField(viewModel.noteLabel, text: $note)
+                TextField(viewModel.loc(isSubscription ? "Subscription name" : "Note"), text: $note)
             }
             .padding(14)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -305,6 +353,70 @@ struct AddTransactionView: View {
                 .datePickerStyle(.compact)
                 .padding(14)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private var subscriptionDetails: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "repeat.circle.fill")
+                    .foregroundStyle(viewModel.theme.primaryColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(viewModel.loc("Track as subscription"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(viewModel.loc("Future charges will be added automatically."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            Picker(viewModel.loc("Billing period"), selection: $billingInterval) {
+                Text(viewModel.loc("Weekly")).tag(RecurringSubscription.BillingInterval.weekly)
+                Text(viewModel.loc("Every 2 weeks")).tag(RecurringSubscription.BillingInterval.biweekly)
+                Text(viewModel.loc("Monthly")).tag(RecurringSubscription.BillingInterval.monthly)
+                Text(viewModel.loc("Custom")).tag(RecurringSubscription.BillingInterval.custom)
+            }
+            .pickerStyle(.segmented)
+
+            if billingInterval == .custom {
+                Stepper(
+                    "\(viewModel.loc("Every")) \(customIntervalDays) \(viewModel.loc("days"))",
+                    value: $customIntervalDays,
+                    in: 1...365
+                )
+                .font(.subheadline)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            HStack {
+                Text(viewModel.loc("Next charge"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(nextChargeDate.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(viewModel.appLocale)))
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .padding(16)
+        .background(viewModel.theme.primaryColor.opacity(0.09), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(viewModel.theme.primaryColor.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    private var nextChargeDate: Date {
+        let calendar = Calendar.current
+        switch billingInterval {
+        case .weekly:
+            return calendar.date(byAdding: .day, value: 7, to: date) ?? date
+        case .biweekly:
+            return calendar.date(byAdding: .day, value: 14, to: date) ?? date
+        case .monthly:
+            return calendar.date(byAdding: .month, value: 1, to: date) ?? date
+        case .custom:
+            return calendar.date(byAdding: .day, value: customIntervalDays, to: date) ?? date
         }
     }
 
@@ -353,6 +465,8 @@ struct AddTransactionView: View {
             note: note.trimmingCharacters(in: .whitespaces).isEmpty ? nil : note.trimmingCharacters(in: .whitespaces),
             date: formatter.string(from: date),
             merchant: note.trimmingCharacters(in: .whitespaces).isEmpty ? nil : note.trimmingCharacters(in: .whitespaces),
+            isRecurring: isSubscription,
+            tags: isSubscription ? ["subscription"] : nil,
             originalCurrency: useForeign ? selectedCurrency : nil,
             originalAmount: useForeign ? value : nil,
             exchangeRate: useForeign ? conversionRate : nil,
@@ -360,6 +474,18 @@ struct AddTransactionView: View {
         )
         Task {
             await viewModel.addTransaction(data)
+            if isSubscription {
+                await viewModel.addRecurringSubscription(
+                    name: note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? viewModel.loc("Subscription") : note.trimmingCharacters(in: .whitespacesAndNewlines),
+                    amount: finalAmount,
+                    currencyCode: viewModel.currency,
+                    category: category,
+                    note: note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note.trimmingCharacters(in: .whitespacesAndNewlines),
+                    startDate: date,
+                    interval: billingInterval,
+                    customIntervalDays: billingInterval == .custom ? customIntervalDays : nil
+                )
+            }
             isSaving = false
             dismiss()
         }

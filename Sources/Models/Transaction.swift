@@ -102,3 +102,26 @@ struct TransactionData: Codable {
         case baseCurrency = "base_currency"
     }
 }
+
+struct RecurringSubscription: Codable, Identifiable, Equatable, Sendable {
+    var id: String
+    var name: String
+    var amount: Double
+    var currencyCode: String
+    var category: String?
+    var note: String?
+    var startDate: String
+    var nextBillingDate: String
+    var interval: BillingInterval
+    var customIntervalDays: Int?
+    var isActive: Bool
+    var createdDate: String?
+    var updatedDate: String?
+
+    enum BillingInterval: String, Codable, CaseIterable, Sendable {
+        case weekly
+        case biweekly
+        case monthly
+        case custom
+    }
+}

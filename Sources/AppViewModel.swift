@@ -30,6 +30,7 @@ final class AppViewModel {
     var budgets: [Budget] = []
     var goals: [Goal] = []
     var analysisHistory: [AnalysisHistory] = []
+    var recurringSubscriptions: [RecurringSubscription] = []
     var user: User?
 
     // Loading
@@ -61,7 +62,12 @@ final class AppViewModel {
            let h = try? decoder.decode([AnalysisHistory].self, from: data) {
             analysisHistory = h
         }
+        if let data = prefs.data(forKey: "local_recurring_subscriptions"),
+           let subs = try? decoder.decode([RecurringSubscription].self, from: data) {
+            recurringSubscriptions = subs
+        }
         applyBudgetPreferences()
+        postDueRecurringSubscriptions()
     }
 
     func checkAndNotifyBudgetAlerts() {
@@ -84,6 +90,9 @@ final class AppViewModel {
         }
         if let data = try? JSONEncoder().encode(analysisHistory) {
             prefs.set(data, forKey: "local_analysis_history")
+        }
+        if let data = try? JSONEncoder().encode(recurringSubscriptions) {
+            prefs.set(data, forKey: "local_recurring_subscriptions")
         }
         prefs.synchronize()
     }
@@ -197,6 +206,7 @@ final class AppViewModel {
         budgets = []
         goals = []
         analysisHistory = []
+        recurringSubscriptions = []
         currentDailyResult = nil
         currentWeeklyResult = nil
         currentMonthlyResult = nil
@@ -207,6 +217,7 @@ final class AppViewModel {
         currency = "USD"
         language = savedLanguage
         hasProSubscription = false
+        saveLocalData()
         let cache = CacheService.shared
         Task { await cache.clear() }
         needsResetToSetup = true
@@ -1951,6 +1962,7 @@ final class AppViewModel {
         budgets = []
         goals = []
         analysisHistory = []
+        recurringSubscriptions = []
         user = nil
         saveLocalData()
     }
@@ -1960,6 +1972,7 @@ final class AppViewModel {
     func refreshAll() async {
         loadLocalData()
         applyBudgetPreferences()
+        postDueRecurringSubscriptions()
         isLoadingData = false
     }
 
@@ -1990,6 +2003,140 @@ final class AppViewModel {
             transactions.insert(txn, at: 0)
         }
         saveLocalData()
+    }
+
+    func addRecurringSubscription(
+        name: String,
+        amount: Double,
+        currencyCode: String,
+        category: String?,
+        note: String?,
+        startDate: Date,
+        interval: RecurringSubscription.BillingInterval,
+        customIntervalDays: Int?
+    ) async {
+        let id = UUID().uuidString
+        let now = ISO8601DateFormatter().string(from: Date())
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var nextDate = nextBillingDate(after: startDate, interval: interval, customIntervalDays: customIntervalDays)
+        while calendar.startOfDay(for: nextDate) <= today {
+            nextDate = nextBillingDate(after: nextDate, interval: interval, customIntervalDays: customIntervalDays)
+        }
+        let subscription = RecurringSubscription(
+            id: id,
+            name: name,
+            amount: amount,
+            currencyCode: currencyCode,
+            category: category,
+            note: note,
+            startDate: dateString(startDate),
+            nextBillingDate: dateString(nextDate),
+            interval: interval,
+            customIntervalDays: customIntervalDays,
+            isActive: true,
+            createdDate: now,
+            updatedDate: now
+        )
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            recurringSubscriptions.insert(subscription, at: 0)
+        }
+        saveLocalData()
+    }
+
+    func deleteRecurringSubscription(_ subscription: RecurringSubscription) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            recurringSubscriptions.removeAll { $0.id == subscription.id }
+        }
+        saveLocalData()
+    }
+
+    func deactivateRecurringSubscription(_ subscription: RecurringSubscription) {
+        guard let index = recurringSubscriptions.firstIndex(where: { $0.id == subscription.id }) else { return }
+        recurringSubscriptions[index].isActive = false
+        recurringSubscriptions[index].updatedDate = ISO8601DateFormatter().string(from: Date())
+        saveLocalData()
+    }
+
+    private func postDueRecurringSubscriptions() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var generated: [Transaction] = []
+        var updated = false
+
+        for index in recurringSubscriptions.indices {
+            guard recurringSubscriptions[index].isActive,
+                  var nextDate = Date.fromDateString(recurringSubscriptions[index].nextBillingDate) else { continue }
+
+            nextDate = calendar.startOfDay(for: nextDate)
+            var safetyCounter = 0
+            while nextDate <= today && safetyCounter < 36 {
+                let subscription = recurringSubscriptions[index]
+                let dueDate = dateString(nextDate)
+                let tag = "subscription:\(subscription.id)"
+
+                if !transactions.contains(where: { $0.date == dueDate && ($0.tags ?? []).contains(tag) }) {
+                    let now = ISO8601DateFormatter().string(from: Date())
+                    generated.append(Transaction(
+                        id: UUID().uuidString,
+                        amount: subscription.amount,
+                        type: .expense,
+                        category: subscription.category ?? "subscriptions",
+                        note: subscription.note ?? subscription.name,
+                        date: dueDate,
+                        merchant: subscription.name,
+                        description: nil,
+                        isRecurring: true,
+                        tags: [tag, "subscription"],
+                        createdDate: now,
+                        updatedDate: now,
+                        originalCurrency: nil,
+                        originalAmount: nil,
+                        exchangeRate: nil,
+                        baseCurrency: subscription.currencyCode
+                    ))
+                }
+
+                nextDate = nextBillingDate(after: nextDate, interval: subscription.interval, customIntervalDays: subscription.customIntervalDays)
+                recurringSubscriptions[index].nextBillingDate = dateString(nextDate)
+                recurringSubscriptions[index].updatedDate = ISO8601DateFormatter().string(from: Date())
+                updated = true
+                safetyCounter += 1
+            }
+        }
+
+        guard updated || !generated.isEmpty else { return }
+        if !generated.isEmpty {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                transactions.insert(contentsOf: generated.sorted { $0.date > $1.date }, at: 0)
+            }
+        }
+        saveLocalData()
+    }
+
+    private func nextBillingDate(
+        after date: Date,
+        interval: RecurringSubscription.BillingInterval,
+        customIntervalDays: Int?
+    ) -> Date {
+        let calendar = Calendar.current
+        switch interval {
+        case .weekly:
+            return calendar.date(byAdding: .day, value: 7, to: date) ?? date
+        case .biweekly:
+            return calendar.date(byAdding: .day, value: 14, to: date) ?? date
+        case .monthly:
+            return calendar.date(byAdding: .month, value: 1, to: date) ?? date
+        case .custom:
+            return calendar.date(byAdding: .day, value: max(1, customIntervalDays ?? 30), to: date) ?? date
+        }
+    }
+
+    private func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     func refreshExchangeRates() async {

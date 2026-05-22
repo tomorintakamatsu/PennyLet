@@ -134,6 +134,12 @@ private struct MoreView: View {
             } label: {
                 Label(viewModel.loc("Budget Health"), systemImage: "heart.fill")
             }
+
+            NavigationLink {
+                SettingsView()
+            } label: {
+                Label(viewModel.settingsTitle, systemImage: "gearshape.fill")
+            }
         }
         .navigationTitle(viewModel.moreTab)
     }
