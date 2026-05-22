@@ -5,6 +5,8 @@ const STRUCTURED_MAX_TOKENS = 1100;
 const RECEIPT_MAX_TOKENS = 2200;
 const TEXT_MAX_TOKENS = 800;
 const STRUCTURED_TOOL_NAME = "return_clearspend_result";
+const STANDARD_MODEL_FALLBACK = "deepseek-v4-flash";
+const PRO_MODEL_FALLBACK = "deepseek-v4-pro";
 const FINANCE_ACCURACY_RULES = [
   "Accuracy rules:",
   "- The app provides the user's budget, transaction, merchant, category, date, goal, and pace evidence. Treat it as the only source of truth.",
@@ -43,6 +45,7 @@ export default {
       const body = await request.json();
       const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
       const responseJsonSchema = body.response_json_schema;
+      const modelTier = body.model_tier === "pro" ? "pro" : "standard";
 
       if (!prompt) {
         return jsonResponse({ error: "Prompt is required", request_id: requestId }, 400);
@@ -52,7 +55,7 @@ export default {
         return jsonResponse({ error: "Prompt is too large", request_id: requestId }, 413);
       }
 
-      const content = await invokeDeepSeek(env, prompt, responseJsonSchema);
+      const content = await invokeDeepSeek(env, prompt, responseJsonSchema, modelTier);
 
       if (!content) {
         return jsonResponse({ error: "Empty AI response", request_id: requestId }, 502);
@@ -80,11 +83,12 @@ export default {
   }
 };
 
-async function invokeDeepSeek(env, prompt, responseJsonSchema) {
+async function invokeDeepSeek(env, prompt, responseJsonSchema, modelTier) {
   const primaryMode = responseJsonSchema
     ? (isReceiptSchema(responseJsonSchema) ? "tool" : "json")
     : "text";
-  const payload = buildPayload(env, prompt, responseJsonSchema, primaryMode);
+  const model = modelForTier(env, modelTier);
+  const payload = buildPayload(env, prompt, responseJsonSchema, primaryMode, model);
   let result;
 
   try {
@@ -102,7 +106,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema) {
     }));
 
     const fallbackMode = primaryMode === "tool" ? "json" : "tool";
-    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode);
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
     const fallbackResult = await requestDeepSeek(env, fallbackPayload);
     if (fallbackResult.content) {
       return fallbackResult.content;
@@ -122,7 +126,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema) {
 
   if (responseJsonSchema) {
     const fallbackMode = primaryMode === "tool" ? "json" : "tool";
-    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode);
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
     const fallbackResult = await requestDeepSeek(env, fallbackPayload);
     if (fallbackResult.content) {
       return fallbackResult.content;
@@ -138,7 +142,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema) {
   throw new HttpError("AI returned an empty response. Please try again.", 502);
 }
 
-function buildPayload(env, prompt, responseJsonSchema, mode) {
+function buildPayload(env, prompt, responseJsonSchema, mode, model) {
   const messages = [
     {
       role: "system",
@@ -151,7 +155,7 @@ function buildPayload(env, prompt, responseJsonSchema, mode) {
   ];
 
   const payload = {
-    model: env.DEEPSEEK_MODEL,
+    model,
     messages,
     thinking: { type: "disabled" },
     temperature: 0.1,
@@ -179,6 +183,13 @@ function buildPayload(env, prompt, responseJsonSchema, mode) {
   return payload;
 }
 
+function modelForTier(env, modelTier) {
+  if (modelTier === "pro") {
+    return env.DEEPSEEK_PRO_MODEL || env.DEEPSEEK_MODEL || PRO_MODEL_FALLBACK;
+  }
+  return env.DEEPSEEK_STANDARD_MODEL || STANDARD_MODEL_FALLBACK;
+}
+
 async function requestDeepSeek(env, payload) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("Provider timed out"), PROVIDER_TIMEOUT_MS);
@@ -189,7 +200,7 @@ async function requestDeepSeek(env, payload) {
       method: "POST",
       headers: {
         "Accept": "application/json",
-        "Authorization": `Bearer ${env.DEEPSEEK_API_KEY}`,
+        "Authorization": `Bearer ${env.AI_PROVIDER_API_KEY || env.DEEPSEEK_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(payload),
@@ -210,7 +221,7 @@ async function requestDeepSeek(env, payload) {
   if (!response.ok) {
     console.error(JSON.stringify({
       provider_status: response.status,
-      provider_error: data?.error?.message ?? "DeepSeek request failed"
+      provider_error: data?.error?.message ?? "Provider request failed"
     }));
     throw new HttpError("Provider request failed", 502);
   }

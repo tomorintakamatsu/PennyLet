@@ -200,7 +200,10 @@ struct VoiceInputView: View {
 
         do {
             let result = try await AIClient.shared.invokeLLM(
-                prompt: prompt, responseJSONSchema: schema)
+                prompt: prompt,
+                responseJSONSchema: schema,
+                modelTier: viewModel.isPro ? .pro : .standard
+            )
             guard let jsonData = result.data(using: .utf8),
                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
                 // Fallback to regex

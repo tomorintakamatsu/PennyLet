@@ -146,6 +146,10 @@ final class AppViewModel {
         isDeveloperMode = enabled
     }
 
+    private var aiModelTier: AIModelTier {
+        isPro ? .pro : .standard
+    }
+
     func remainingUses(_ feature: String) -> Int {
         let counts = localUsageCounts
         let used = counts[feature] ?? 0
@@ -533,7 +537,7 @@ final class AppViewModel {
             ]),
             "required": .array([.string("summary"), .string("forecast_amount"), .string("top_forecasted_category"), .string("saving_tip"), .string("watch_item"), .string("confidence_reason"), .string("data_gap")]),
         ]
-        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema, modelTier: aiModelTier)
         let formatted = formatForecastResult(raw)
         let forecastAmount = jsonNumber(raw, key: "forecast_amount") ?? localForecastBaseline
 
@@ -659,7 +663,7 @@ final class AppViewModel {
             "required": .array([.string("title"), .string("summary"), .string("top_category"), .string("evidence"), .string("action"), .string("confidence"), .string("data_gap")]),
         ]
 
-        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema, modelTier: aiModelTier)
         let formatted = formatResult(raw, type: "daily")
 
         let today = ISO8601DateFormatter().string(from: Date())
@@ -761,7 +765,7 @@ final class AppViewModel {
             "required": .array([.string("summary"), .string("top_category"), .string("vs_last_week"), .string("biggest_driver"), .string("action"), .string("watch_item"), .string("confidence"), .string("data_gap")]),
         ]
 
-        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema, modelTier: aiModelTier)
         let formatted = formatResult(raw, type: "weekly")
 
         let now = ISO8601DateFormatter().string(from: Date())
@@ -868,7 +872,7 @@ final class AppViewModel {
             "required": .array([.string("headline"), .string("summary"), .string("budget_adherence"), .string("biggest_change"), .string("next_step"), .string("drivers"), .string("watch_item"), .string("confidence"), .string("data_gap")]),
         ]
 
-        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema, modelTier: aiModelTier)
         let formatted = formatResult(raw, type: "monthly")
 
         let now = ISO8601DateFormatter().string(from: Date())

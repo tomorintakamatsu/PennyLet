@@ -1,5 +1,10 @@
 import Foundation
 
+enum AIModelTier: String, Codable, Sendable {
+    case standard
+    case pro
+}
+
 actor AIClient {
     static let shared = AIClient()
 
@@ -14,8 +19,16 @@ actor AIClient {
         session = URLSession(configuration: config)
     }
 
-    func invokeLLM(prompt: String, fileURLs: [String]? = nil, responseJSONSchema: [String: AnyCodable]? = nil) async throws -> String {
-        var body: [String: AnyCodable] = ["prompt": .string(prompt)]
+    func invokeLLM(
+        prompt: String,
+        fileURLs: [String]? = nil,
+        responseJSONSchema: [String: AnyCodable]? = nil,
+        modelTier: AIModelTier = .standard
+    ) async throws -> String {
+        var body: [String: AnyCodable] = [
+            "prompt": .string(prompt),
+            "model_tier": .string(modelTier.rawValue),
+        ]
         if let fileURLs {
             body["file_urls"] = .array(fileURLs.map { .string($0) })
         }

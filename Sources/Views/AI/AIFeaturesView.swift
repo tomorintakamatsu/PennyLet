@@ -731,7 +731,7 @@ struct AIFeaturesView: View {
         case ..<1:
             return viewModel.loc("Finalizing your result")
         default:
-            return viewModel.loc("DeepSeek is checking the details")
+            return viewModel.loc("AI is checking the details")
         }
     }
 
