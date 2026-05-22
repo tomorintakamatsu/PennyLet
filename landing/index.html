@@ -5,18 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="ClearSpend turns your real monthly budget into one simple daily spending number, with receipt scanning, subscriptions, goals, and AI insights when you want them."
+      content="ClearSpend is an iPhone budget tracker that turns income, bills, savings, and spending into one safe daily number, with receipt scanning, goals, subscriptions, and AI insights."
     />
-    <meta property="og:title" content="ClearSpend - Spend without second-guessing it" />
+    <meta property="og:title" content="ClearSpend - Know what you can safely spend today" />
     <meta
       property="og:description"
-      content="Turn income, bills, savings, and recent spending into one clear number you can use today."
+      content="A calm iPhone budget tracker for daily spending clarity, receipt scanning, subscriptions, goals, and optional AI insights."
     />
     <meta property="og:type" content="website" />
-    <meta name="theme-color" content="#8b3dff" />
+    <meta property="og:site_name" content="ClearSpend" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="ClearSpend - Daily spending clarity" />
+    <meta
+      name="twitter:description"
+      content="See one safe-to-spend number for today, then track receipts, goals, subscriptions, and spending insights."
+    />
+    <meta name="theme-color" content="#0f766e" />
     <meta name="apple-itunes-app" content="app-id=6758940961" />
-    <title>ClearSpend - Spend without second-guessing it</title>
+    <title>ClearSpend - Daily budget and receipt tracker for iPhone</title>
     <link rel="icon" href="./assets/clearspend-logo.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ClearSpend",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "iOS",
+        "description": "ClearSpend turns your monthly budget into one safe daily spending number, with receipt scanning, savings goals, subscriptions, CSV import/export, multi-currency tracking, and optional AI spending insights.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "downloadUrl": "https://apps.apple.com/app/id6758940961"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is ClearSpend a full budgeting app?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. It tracks spending, income, balance, categories, goals, subscriptions, and budget health, but the main habit is simpler: check what is safe to spend today."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use ClearSpend without linking a bank?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. ClearSpend is built around manual entry, receipt scanning, CSV import/export, and local budget setup instead of requiring a bank connection."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does Pro add?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Pro expands AI analysis limits, adds forecasts, unlocks custom categories and visual charts, and removes the monthly receipt scan limit."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does ClearSpend work with multiple currencies?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. You can enter supported foreign-currency purchases and keep the original amount visible alongside your base-currency tracking."
+            }
+          }
+        ]
+      }
+    </script>
     <script>
       document.documentElement.classList.add("js");
     </script>
@@ -38,8 +101,8 @@
       </a>
       <nav class="nav-links" aria-label="Main">
         <a href="#features">What it does</a>
+        <a href="#demo">How it works</a>
         <a href="#plans">Free vs Pro</a>
-        <a href="#privacy">Why it helps</a>
       </nav>
       <a class="store-button store-button--header" href="https://apps.apple.com/app/id6758940961" aria-label="Download ClearSpend on the App Store">
         <span>Download on the</span>
@@ -51,10 +114,10 @@
       <section class="hero snap-section" aria-labelledby="hero-title">
         <div class="motion-grid" aria-hidden="true"></div>
         <div class="hero-copy" data-animate>
-          <h1 id="hero-title">Spend today without second-guessing it.</h1>
+          <h1 id="hero-title">Know what you can safely spend today.</h1>
           <p>
-            ClearSpend takes your income, bills, savings goal, and recent
-            spending, then gives you a daily number you can actually use.
+            ClearSpend turns your income, bills, savings goal, and recent
+            spending into one daily budget number you can actually use.
           </p>
           <div class="hero-actions">
             <a class="store-button" href="https://apps.apple.com/app/id6758940961" aria-label="Download ClearSpend on the App Store">
@@ -144,8 +207,8 @@
               <path d="m8.8 12 2 2 4.6-5" />
             </svg>
           </span>
-          <h2>Your daily number</h2>
-          <p>See what is comfortable to spend today after bills, savings, and the rest of the month are already considered.</p>
+          <h2>Safe daily budget</h2>
+          <p>See what is comfortable to spend today after income, bills, savings, and the rest of the month are already considered.</p>
         </article>
         <article data-animate>
           <span>
@@ -154,7 +217,7 @@
               <path d="M9.5 8h5M9.5 12h5M9.5 16h3" />
             </svg>
           </span>
-          <h2>Receipts, cleaned up</h2>
+          <h2>Receipt scanner</h2>
           <p>Scan a receipt, review the items, and keep your spending history tidy without typing every line by hand.</p>
         </article>
         <article data-animate>
@@ -164,7 +227,7 @@
               <path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
             </svg>
           </span>
-          <h2>Useful AI insights</h2>
+          <h2>AI spending insights</h2>
           <p>Get plain-language notes about what changed, where spending drifted, and what to watch next.</p>
         </article>
         <article data-animate>
@@ -174,17 +237,17 @@
               <path d="M3.5 10h17M8 15h3" />
             </svg>
           </span>
-          <h2>Subscriptions in view</h2>
+          <h2>Subscription tracker</h2>
           <p>Bring recurring App Store costs into the same view as everyday spending, so they stay visible.</p>
         </article>
       </section>
 
       <section class="feature-demo snap-section" id="demo" aria-labelledby="demo-title">
         <div class="demo-heading" data-animate>
-          <h2 id="demo-title">The app explains itself as you move.</h2>
+          <h2 id="demo-title">A money check that takes seconds.</h2>
           <p>
-            Scroll through the rhythm of ClearSpend: check today, capture what
-            changed, understand the pattern, and keep recurring costs in sight.
+            Check today, capture what changed, understand the pattern, and keep
+            recurring costs in sight without rebuilding a spreadsheet.
           </p>
         </div>
 
@@ -258,7 +321,7 @@
               <h3>Start with one number that feels usable.</h3>
               <p>
                 ClearSpend turns the whole month into a daily spending pace,
-                so users can open the app and immediately know what is
+                so you can open the app and immediately know what is
                 comfortable today.
               </p>
             </article>
@@ -266,8 +329,8 @@
               <span>02</span>
               <h3>Scan a receipt without turning it into homework.</h3>
               <p>
-                The page now shows how a receipt becomes clean transaction
-                data: items, total, and category appear in a quick visual pass.
+                A receipt becomes clean transaction data: items, total,
+                merchant, and category are ready to review before saving.
               </p>
             </article>
             <article class="demo-step" data-demo="ai" data-animate>
@@ -293,13 +356,13 @@
       <section class="flow snap-section" aria-labelledby="flow-title">
         <div class="flow-header" data-animate>
           <h2 id="flow-title">A budget check that fits into the day.</h2>
-          <p>ClearSpend is built around small, repeatable moments: check the number, capture what changed, and let the app summarize the pattern.</p>
+          <p>ClearSpend is built around small, repeatable moments: check the number, log what changed, and let the app summarize the pattern.</p>
         </div>
         <div class="flow-track" aria-label="How ClearSpend fits into a daily routine">
           <article class="flow-step" data-animate>
             <span>01</span>
             <h3>Start with the real month</h3>
-            <p>Add income, bills, savings, and payday once. ClearSpend turns that into a daily pace instead of a vague monthly target.</p>
+            <p>Add income, bills, savings, and payday once. ClearSpend turns the month into a daily pace instead of a vague target.</p>
           </article>
           <article class="flow-step" data-animate>
             <span>02</span>
@@ -310,6 +373,31 @@
             <span>03</span>
             <h3>Review without a spreadsheet</h3>
             <p>Use category breakdowns, goals, subscriptions, and optional AI recaps to understand what happened before it becomes a surprise.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="trust-band snap-section" id="privacy" aria-labelledby="trust-title">
+        <div class="trust-copy" data-animate>
+          <h2 id="trust-title">Built for people who want clarity, not guilt.</h2>
+          <p>
+            ClearSpend keeps budgeting practical: use guest mode, import or export
+            CSV data, track multiple currencies, and choose AI insights only when
+            you want a deeper read.
+          </p>
+        </div>
+        <div class="trust-grid" aria-label="ClearSpend trust and control features">
+          <article data-animate>
+            <span>Guest mode</span>
+            <p>Start tracking without creating an account, then sign in later if Pro becomes useful.</p>
+          </article>
+          <article data-animate>
+            <span>Data controls</span>
+            <p>Import CSV history, export your transactions, refresh rates, and reset when you need a clean slate.</p>
+          </article>
+          <article data-animate>
+            <span>Global spending</span>
+            <p>Track purchases in USD, EUR, GBP, JPY, CNY, and other supported currencies.</p>
           </article>
         </div>
       </section>
@@ -408,10 +496,35 @@
         </div>
       </section>
 
-      <section class="privacy-strip snap-section" id="privacy" data-animate>
+      <section class="faq snap-section" aria-labelledby="faq-title">
+        <div class="faq-heading" data-animate>
+          <h2 id="faq-title">Questions before you try it?</h2>
+          <p>Short answers for the things people usually want to know before adding another finance app.</p>
+        </div>
+        <div class="faq-list">
+          <article data-animate>
+            <h3>Is ClearSpend a full budgeting app?</h3>
+            <p>Yes. It tracks spending, income, balance, categories, goals, subscriptions, and budget health, but the main habit is simpler: check what is safe to spend today.</p>
+          </article>
+          <article data-animate>
+            <h3>Can I use ClearSpend without linking a bank?</h3>
+            <p>Yes. ClearSpend is built around manual entry, receipt scanning, CSV import/export, and local budget setup instead of requiring a bank connection.</p>
+          </article>
+          <article data-animate>
+            <h3>What does Pro add?</h3>
+            <p>Pro expands AI analysis limits, adds forecasts, unlocks custom categories and visual charts, and removes the monthly receipt scan limit.</p>
+          </article>
+          <article data-animate>
+            <h3>Does ClearSpend work with multiple currencies?</h3>
+            <p>Yes. You can enter supported foreign-currency purchases and keep the original amount visible alongside your base-currency tracking.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="privacy-strip snap-section" data-animate>
         <div>
           <h2>A clearer way to check your money.</h2>
-          <p>Open the app, see your number, log what changed, and move through the day with less mental math.</p>
+          <p>Open the app, see your daily number, log what changed, and move through the day with less mental math.</p>
         </div>
         <a class="store-button store-button--light" href="https://apps.apple.com/app/id6758940961" aria-label="Download ClearSpend on the App Store">
           <span>Download on the</span>
@@ -419,5 +532,10 @@
         </a>
       </section>
     </main>
+    <footer class="site-footer">
+      <span>ClearSpend</span>
+      <a href="https://apps.apple.com/app/id6758940961">App Store</a>
+      <a href="https://tomorintakamatsu.github.io/clearspend-privacy/privacy-policy.pdf">Privacy Policy</a>
+    </footer>
   </body>
 </html>
