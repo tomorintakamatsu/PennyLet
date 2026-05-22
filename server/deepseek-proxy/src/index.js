@@ -1,9 +1,10 @@
 const MAX_BODY_BYTES = 80_000;
 const MAX_PROMPT_CHARS = 50_000;
-const PROVIDER_TIMEOUT_MS = 115_000;
-const STRUCTURED_MAX_TOKENS = 1100;
+const PRIMARY_PROVIDER_TIMEOUT_MS = 45_000;
+const FALLBACK_PROVIDER_TIMEOUT_MS = 35_000;
+const STRUCTURED_MAX_TOKENS = 850;
 const RECEIPT_MAX_TOKENS = 2200;
-const TEXT_MAX_TOKENS = 800;
+const TEXT_MAX_TOKENS = 600;
 const STRUCTURED_TOOL_NAME = "return_clearspend_result";
 const STANDARD_MODEL_FALLBACK = "deepseek-v4-flash";
 const PRO_MODEL_FALLBACK = "deepseek-v4-pro";
@@ -19,7 +20,7 @@ const FINANCE_ACCURACY_RULES = [
 
 export default {
   async fetch(request, env) {
-    const requestId = crypto.randomUUID();
+    const requestId = request.headers.get("X-Request-Id") || crypto.randomUUID();
 
     try {
       if (request.method === "OPTIONS") {
@@ -87,12 +88,32 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema, modelTier) {
   const primaryMode = responseJsonSchema
     ? (isReceiptSchema(responseJsonSchema) ? "tool" : "json")
     : "text";
-  const model = modelForTier(env, modelTier);
+  const primaryModel = modelForTier(env, modelTier);
+  const fallbackModel = standardModel(env);
+
+  try {
+    return await invokeModel(env, prompt, responseJsonSchema, primaryMode, primaryModel, PRIMARY_PROVIDER_TIMEOUT_MS);
+  } catch (error) {
+    if (modelTier !== "pro" || primaryModel === fallbackModel || !isRetryableProviderError(error)) {
+      throw error;
+    }
+
+    console.error(JSON.stringify({
+      provider_status: "fallback_model",
+      from_tier: modelTier,
+      reason: error instanceof Error ? error.message : "Unknown error"
+    }));
+
+    return invokeModel(env, prompt, responseJsonSchema, primaryMode, fallbackModel, FALLBACK_PROVIDER_TIMEOUT_MS);
+  }
+}
+
+async function invokeModel(env, prompt, responseJsonSchema, primaryMode, model, timeoutMs) {
   const payload = buildPayload(env, prompt, responseJsonSchema, primaryMode, model);
   let result;
 
   try {
-    result = await requestDeepSeek(env, payload);
+    result = await requestDeepSeek(env, payload, timeoutMs);
   } catch (error) {
     if (!responseJsonSchema || error?.status === 504) {
       throw error;
@@ -107,7 +128,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema, modelTier) {
 
     const fallbackMode = primaryMode === "tool" ? "json" : "tool";
     const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
-    const fallbackResult = await requestDeepSeek(env, fallbackPayload);
+    const fallbackResult = await requestDeepSeek(env, fallbackPayload, timeoutMs);
     if (fallbackResult.content) {
       return fallbackResult.content;
     }
@@ -127,7 +148,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema, modelTier) {
   if (responseJsonSchema) {
     const fallbackMode = primaryMode === "tool" ? "json" : "tool";
     const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
-    const fallbackResult = await requestDeepSeek(env, fallbackPayload);
+    const fallbackResult = await requestDeepSeek(env, fallbackPayload, timeoutMs);
     if (fallbackResult.content) {
       return fallbackResult.content;
     }
@@ -187,12 +208,20 @@ function modelForTier(env, modelTier) {
   if (modelTier === "pro") {
     return env.DEEPSEEK_PRO_MODEL || env.DEEPSEEK_MODEL || PRO_MODEL_FALLBACK;
   }
+  return standardModel(env);
+}
+
+function standardModel(env) {
   return env.DEEPSEEK_STANDARD_MODEL || STANDARD_MODEL_FALLBACK;
 }
 
-async function requestDeepSeek(env, payload) {
+function isRetryableProviderError(error) {
+  return error instanceof HttpError && (error.status === 502 || error.status === 503 || error.status === 504);
+}
+
+async function requestDeepSeek(env, payload, timeoutMs) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("Provider timed out"), PROVIDER_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort("Provider timed out"), timeoutMs);
   let response;
 
   try {
@@ -223,7 +252,7 @@ async function requestDeepSeek(env, payload) {
       provider_status: response.status,
       provider_error: data?.error?.message ?? "Provider request failed"
     }));
-    throw new HttpError("Provider request failed", 502);
+    throw new HttpError("AI service is busy. Please try again.", 502);
   }
 
   return extractContent(data);
