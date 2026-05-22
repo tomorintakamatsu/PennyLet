@@ -9,8 +9,8 @@ actor AIClient {
 
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 120
-        config.timeoutIntervalForResource = 180
+        config.timeoutIntervalForRequest = 180
+        config.timeoutIntervalForResource = 240
         session = URLSession(configuration: config)
     }
 
@@ -40,7 +40,7 @@ actor AIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 120
+        request.timeoutInterval = 180
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(APIConstants.aiProxyClientID, forHTTPHeaderField: "X-ClearSpend-Client")

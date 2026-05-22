@@ -1,9 +1,9 @@
 const MAX_BODY_BYTES = 80_000;
 const MAX_PROMPT_CHARS = 50_000;
-const PROVIDER_TIMEOUT_MS = 85_000;
-const STRUCTURED_MAX_TOKENS = 2200;
+const PROVIDER_TIMEOUT_MS = 115_000;
+const STRUCTURED_MAX_TOKENS = 1100;
 const RECEIPT_MAX_TOKENS = 2200;
-const TEXT_MAX_TOKENS = 1000;
+const TEXT_MAX_TOKENS = 800;
 const STRUCTURED_TOOL_NAME = "return_clearspend_result";
 const FINANCE_ACCURACY_RULES = [
   "Accuracy rules:",
@@ -81,8 +81,34 @@ export default {
 };
 
 async function invokeDeepSeek(env, prompt, responseJsonSchema) {
-  const payload = buildPayload(env, prompt, responseJsonSchema, responseJsonSchema ? "tool" : "text");
-  const result = await requestDeepSeek(env, payload);
+  const primaryMode = responseJsonSchema
+    ? (isReceiptSchema(responseJsonSchema) ? "tool" : "json")
+    : "text";
+  const payload = buildPayload(env, prompt, responseJsonSchema, primaryMode);
+  let result;
+
+  try {
+    result = await requestDeepSeek(env, payload);
+  } catch (error) {
+    if (!responseJsonSchema || error?.status === 504) {
+      throw error;
+    }
+
+    console.error(JSON.stringify({
+      provider_status: "primary_failed",
+      mode: primaryMode,
+      fallback: primaryMode === "tool" ? "json" : "tool",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }));
+
+    const fallbackMode = primaryMode === "tool" ? "json" : "tool";
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode);
+    const fallbackResult = await requestDeepSeek(env, fallbackPayload);
+    if (fallbackResult.content) {
+      return fallbackResult.content;
+    }
+    throw error;
+  }
 
   if (result.content) {
     return result.content;
@@ -91,11 +117,12 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema) {
   console.error(JSON.stringify({
     provider_status: "empty_content",
     finish_reason: result.finishReason ?? "unknown",
-    mode: responseJsonSchema ? "tool" : "text"
+    mode: primaryMode
   }));
 
   if (responseJsonSchema) {
-    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, "json");
+    const fallbackMode = primaryMode === "tool" ? "json" : "tool";
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode);
     const fallbackResult = await requestDeepSeek(env, fallbackPayload);
     if (fallbackResult.content) {
       return fallbackResult.content;
@@ -104,7 +131,7 @@ async function invokeDeepSeek(env, prompt, responseJsonSchema) {
     console.error(JSON.stringify({
       provider_status: "empty_content",
       finish_reason: fallbackResult.finishReason ?? "unknown",
-      mode: "json"
+      mode: fallbackMode
     }));
   }
 
@@ -220,7 +247,7 @@ function buildSystemPrompt(responseJsonSchema, mode) {
   }
 
   const schemaText = JSON.stringify(responseJsonSchema);
-  const isReceiptSchema = schemaText.includes('"items"') && schemaText.includes('"price"');
+  const receiptSchema = isReceiptSchema(responseJsonSchema);
 
   if (mode === "tool") {
     return [
@@ -228,7 +255,7 @@ function buildSystemPrompt(responseJsonSchema, mode) {
       "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
       "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
       FINANCE_ACCURACY_RULES,
-      isReceiptSchema
+      receiptSchema
         ? "Extract only visible receipt line items and keep merchant/category values concise."
         : "Keep strings concise and specific. Each string should be grounded in provided evidence. Do not add fields that are not in the schema.",
       `Call the ${STRUCTURED_TOOL_NAME} tool with the requested structured result.`
@@ -240,7 +267,7 @@ function buildSystemPrompt(responseJsonSchema, mode) {
     "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
     "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
     FINANCE_ACCURACY_RULES,
-    isReceiptSchema
+    receiptSchema
       ? "Extract only visible receipt line items and keep merchant/category values concise."
       : "Keep the full JSON response concise: short strings, no extra fields, no long explanations. Ground every claim in provided evidence.",
     "Return only valid JSON. Do not include markdown, code fences, or explanatory text.",
@@ -254,12 +281,16 @@ function maxTokensFor(responseJsonSchema) {
     return TEXT_MAX_TOKENS;
   }
 
-  const schemaText = JSON.stringify(responseJsonSchema);
-  if (schemaText.includes('"items"') && schemaText.includes('"price"')) {
+  if (isReceiptSchema(responseJsonSchema)) {
     return RECEIPT_MAX_TOKENS;
   }
 
   return STRUCTURED_MAX_TOKENS;
+}
+
+function isReceiptSchema(responseJsonSchema) {
+  const schemaText = JSON.stringify(responseJsonSchema);
+  return schemaText.includes('"items"') && schemaText.includes('"price"');
 }
 
 function jsonResponse(payload, status) {

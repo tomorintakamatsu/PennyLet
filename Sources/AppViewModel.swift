@@ -302,10 +302,10 @@ final class AppViewModel {
             "- Days left this month: \(summary.daysLeft)",
             "",
             "Current month evidence:",
-            "- Current month top categories: \(topCategoryLines(from: monthExpenses, limit: 5))",
-            "- Current month top merchants: \(topMerchantLines(from: monthExpenses, limit: 5))",
-            "- Largest current month expenses: \(transactionEvidenceLines(monthExpenses.sorted { $0.amount > $1.amount }, limit: 5))",
-            "- Recent transactions: \(transactionEvidenceLines(transactions.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) }, limit: 10))",
+            "- Current month top categories: \(topCategoryLines(from: monthExpenses, limit: 4))",
+            "- Current month top merchants: \(topMerchantLines(from: monthExpenses, limit: 4))",
+            "- Largest current month expenses: \(transactionEvidenceLines(monthExpenses.sorted { $0.amount > $1.amount }, limit: 3))",
+            "- Recent transactions: \(transactionEvidenceLines(transactions.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) }, limit: 6))",
             "- Goals: \(goalContextLines())"
         ].joined(separator: "\n")
     }
@@ -315,13 +315,11 @@ final class AppViewModel {
         Accuracy and writing rules for \(analysisName):
         - Write in \(promptLanguage).
         - Treat the provided ClearSpend data as the only source of truth.
-        - Every insight must cite at least one exact amount, category, merchant, date, percentage, or time window from the data.
         - Do not invent missing transactions, income, merchants, dates, goals, or category changes.
-        - If the dataset is thin, say what is missing and use the nearest available evidence instead of giving generic advice.
-        - Keep the output short: practical, specific, and easy to act on in under 15 seconds.
+        - Cite exact amounts, categories, merchants, dates, percentages, or time windows when making claims.
+        - Keep the output short, specific, and useful in under 15 seconds.
         - The action must be measurable: include a target amount, category, merchant, or time window.
-        - Avoid bland advice such as "track your spending", "make a budget", or "spend less" unless it is tied to a specific observed pattern.
-        - Use a calm, non-judgmental tone. No guilt, no moralizing.
+        - Use a calm, non-judgmental tone.
         """
     }
 
@@ -477,7 +475,7 @@ final class AppViewModel {
         let thisMonthExpenses = thisMonth.filter { $0.type == .expense }
         let byCategory: [String: Double] = Dictionary(grouping: thisMonthExpenses, by: { $0.category ?? "other" })
             .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-        let catLines = topCategoryLines(from: thisMonthExpenses, limit: 8)
+        let catLines = topCategoryLines(from: thisMonthExpenses, limit: 5)
         let projectedThisMonth = projectedMonthSpend(currentSpent: thisMonthSpent, summary: s)
         let nonZeroPastMonths = pastMonthsData.map { $0.spent }.filter { $0 > 0 }
         let pastAverage = nonZeroPastMonths.isEmpty ? thisMonthSpent : nonZeroPastMonths.reduce(0, +) / Double(nonZeroPastMonths.count)
@@ -490,7 +488,7 @@ final class AppViewModel {
         }()
         let recentEvidence = transactionEvidenceLines(
             transactions.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) },
-            limit: 12
+            limit: 6
         )
 
         let prompt = """
@@ -595,7 +593,7 @@ final class AppViewModel {
         let todayIncome = todayTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         let txnLines = transactionEvidenceLines(
             todayTxns.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) },
-            limit: 16
+            limit: 10
         )
         let recentTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
@@ -615,13 +613,13 @@ final class AppViewModel {
         \(txnLines == "none" ? "No transactions today." : txnLines)
 
         Recent 14-day transaction evidence:
-        \(transactionEvidenceLines(recentTxns, limit: 12))
+        \(transactionEvidenceLines(recentTxns, limit: 6))
 
         Recent 14-day top categories:
-        \(topCategoryLines(from: recentExpenses, limit: 5))
+        \(topCategoryLines(from: recentExpenses, limit: 3))
 
         Recent 14-day top merchants:
-        \(topMerchantLines(from: recentExpenses, limit: 5))
+        \(topMerchantLines(from: recentExpenses, limit: 3))
 
         Totals:
         - Spent: \(CurrencyFormat.format(todaySpent, currency: currency))
@@ -694,16 +692,16 @@ final class AppViewModel {
 
         let thisWeekExpenses = thisWeekTxns.filter { $0.type == .expense }
         let lastWeekExpenses = lastWeekTxns.filter { $0.type == .expense }
-        let catLines = topCategoryLines(from: thisWeekExpenses, limit: 8)
-        let lastCatLines = topCategoryLines(from: lastWeekExpenses, limit: 8)
-        let categoryChanges = categoryComparisonLines(current: thisWeekExpenses, previous: lastWeekExpenses, limit: 6)
+        let catLines = topCategoryLines(from: thisWeekExpenses, limit: 5)
+        let lastCatLines = topCategoryLines(from: lastWeekExpenses, limit: 5)
+        let categoryChanges = categoryComparisonLines(current: thisWeekExpenses, previous: lastWeekExpenses, limit: 4)
         let thisWeekEvidence = transactionEvidenceLines(
             thisWeekExpenses.sorted { $0.amount > $1.amount },
-            limit: 8
+            limit: 5
         )
         let lastWeekEvidence = transactionEvidenceLines(
             lastWeekExpenses.sorted { $0.amount > $1.amount },
-            limit: 6
+            limit: 3
         )
         let currentWindowLabel = "\(shortDate(currentWindowStart)) to \(shortDate(Date()))"
         let previousWindowLabel = "\(shortDate(previousWindowStart)) to \(shortDate(cal.date(byAdding: .day, value: -1, to: currentWindowStart) ?? currentWindowStart))"
@@ -798,18 +796,18 @@ final class AppViewModel {
 
         let monthExpenses = monthTxns.filter { $0.type == .expense }
         let lastMonthExpenses = lastMonthTxns.filter { $0.type == .expense }
-        let catLines = topCategoryLines(from: monthExpenses, limit: 8)
-        let lastCatLines = topCategoryLines(from: lastMonthExpenses, limit: 8)
-        let categoryChanges = categoryComparisonLines(current: monthExpenses, previous: lastMonthExpenses, limit: 8)
+        let catLines = topCategoryLines(from: monthExpenses, limit: 5)
+        let lastCatLines = topCategoryLines(from: lastMonthExpenses, limit: 5)
+        let categoryChanges = categoryComparisonLines(current: monthExpenses, previous: lastMonthExpenses, limit: 5)
 
         let disposable = (budget?.monthlyIncome ?? 0) - (budget?.monthlyEssentials ?? 0) - (budget?.monthlySavingsGoal ?? 0)
         let budgetPct = disposable > 0 ? Int((monthSpent / disposable * 100).rounded()) : 0
         let projectedSpend = projectedMonthSpend(currentSpent: monthSpent, summary: s)
         let monthlyEvidence = transactionEvidenceLines(
             monthExpenses.sorted { $0.amount > $1.amount },
-            limit: 10
+            limit: 6
         )
-        let merchantEvidence = topMerchantLines(from: monthExpenses, limit: 6)
+        let merchantEvidence = topMerchantLines(from: monthExpenses, limit: 4)
         let monthLabel = {
             let df = DateFormatter(); df.dateFormat = "yyyy-MM"
             return df.string(from: analysisDate)
