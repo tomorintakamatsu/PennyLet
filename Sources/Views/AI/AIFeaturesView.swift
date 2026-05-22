@@ -321,6 +321,7 @@ struct AIFeaturesView: View {
             let elapsed = timeline.date.timeIntervalSince(startDate)
             let progress = estimatedProgress(elapsed: elapsed, estimate: estimate)
             let remaining = max(0, Int(ceil(estimate - elapsed)))
+            let isTakingLonger = elapsed >= estimate
 
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
@@ -343,7 +344,7 @@ struct AIFeaturesView: View {
 
                     Spacer()
 
-                    Text("\(Int((progress * 100).rounded()))%")
+                    Text(progressBadgeText(progress: progress, isTakingLonger: isTakingLonger))
                         .font(.subheadline.monospacedDigit().weight(.semibold))
                         .foregroundStyle(viewModel.theme.primaryColor)
                 }
@@ -354,9 +355,12 @@ struct AIFeaturesView: View {
                     .animation(.easeInOut(duration: 0.25), value: progress)
 
                 HStack {
-                    Label(remainingText(remaining: remaining, elapsed: elapsed, estimate: estimate), systemImage: "clock")
+                    Label(
+                        remainingText(remaining: remaining, elapsed: elapsed, estimate: estimate),
+                        systemImage: isTakingLonger ? "hourglass" : "clock"
+                    )
                     Spacer()
-                    Text(typicalDurationText(for: estimate))
+                    Text(durationStatusText(elapsed: elapsed, estimate: estimate))
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -679,18 +683,30 @@ struct AIFeaturesView: View {
 
     private func estimatedGenerationDuration(for tab: Int) -> TimeInterval {
         switch tab {
-        case 0: return 12
-        case 1: return 18
-        case 2: return 24
-        case 3: return 16
+        case 0: return 18
+        case 1: return 28
+        case 2: return 36
+        case 3: return 30
         default: return 18
         }
     }
 
     private func estimatedProgress(elapsed: TimeInterval, estimate: TimeInterval) -> Double {
-        let raw = elapsed / max(estimate, 1)
-        if raw < 0.08 { return 0.08 }
-        return min(raw, 0.94)
+        let estimate = max(estimate, 1)
+        if elapsed <= estimate {
+            let ratio = max(0, elapsed / estimate)
+            return max(0.08, min(0.9, ratio * 0.9))
+        }
+
+        let extraRatio = min((elapsed - estimate) / 90, 1)
+        return min(0.99, 0.9 + (0.09 * extraRatio))
+    }
+
+    private func progressBadgeText(progress: Double, isTakingLonger: Bool) -> String {
+        if isTakingLonger {
+            return viewModel.loc("Still working")
+        }
+        return "\(Int((progress * 100).rounded()))%"
     }
 
     private func progressTitle(for tab: Int) -> String {
@@ -712,20 +728,25 @@ struct AIFeaturesView: View {
             return viewModel.loc("Finding patterns and outliers")
         case ..<0.86:
             return viewModel.loc("Writing tailored advice")
-        default:
+        case ..<1:
             return viewModel.loc("Finalizing your result")
+        default:
+            return viewModel.loc("DeepSeek is checking the details")
         }
     }
 
     private func remainingText(remaining: Int, elapsed: TimeInterval, estimate: TimeInterval) -> String {
         if elapsed >= estimate {
-            return viewModel.loc("Almost done")
+            return viewModel.loc("Taking longer than usual")
         }
         return "\(viewModel.loc("About")) \(remaining)s \(viewModel.loc("left"))"
     }
 
-    private func typicalDurationText(for estimate: TimeInterval) -> String {
-        "\(viewModel.loc("Usually")) \(Int(estimate))s"
+    private func durationStatusText(elapsed: TimeInterval, estimate: TimeInterval) -> String {
+        if elapsed >= estimate {
+            return viewModel.loc("Larger histories can take longer")
+        }
+        return "\(viewModel.loc("Usually")) \(Int(estimate))s"
     }
 
     private var dateLocale: Locale {
