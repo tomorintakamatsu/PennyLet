@@ -15,7 +15,7 @@
 		116D4D5D6762E938ADE8FF85 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 450EF67CB225D18AF28BFDFB /* Category.swift */; };
 		130C228EAD538E57FDD2987F /* View+Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C513DF0D9F8F945774A47B /* View+Keyboard.swift */; };
 		183D392CB6FCF1AA670D07B9 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE72A78509591233B5656E8F /* AppViewModel.swift */; };
-		187E5C6555EDFE78B3A1C7C6 /* Base44Client.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004F88168ED832C754985F8 /* Base44Client.swift */; };
+		187E5C6555EDFE78B3A1C7C6 /* AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004F88168ED832C754985F8 /* AIClient.swift */; };
 		1DF171523AB35DDE0F1B03F1 /* AnimationPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9743F3856412BB924335AD /* AnimationPresets.swift */; };
 		2348204715AEB2E0307EFE37 /* SpendCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576A23F91FAD89136F3CF8C5 /* SpendCalculator.swift */; };
 		2795ABFCB3BE5E3D3AC51735 /* ClearSpendApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */; };
@@ -33,7 +33,7 @@
 		6A462D0E44570F012A414921 /* CurrencyRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6128E244814947692041C605 /* CurrencyRateService.swift */; };
 		78693C5813CE5496B4F086C2 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63323319571AD5414DDA7BF4 /* SettingsView.swift */; };
 		7BD9CD59B7F26B9A650CE40E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */; };
-		7F6A68208817EF0A9C70B46D /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEE903729902BE39166A2BED /* AuthService.swift */; };
+		7F6C5D4E3B2A190817263544 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8A9B0C1D2E3F405162738495 /* InfoPlist.strings */; };
 		84A6A15805B9FEA760FBFE21 /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36C980CE7C328DB5F130C49 /* SkeletonView.swift */; };
 		858667D40649A883EC90F3A8 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7416601FBA65A4DF03C2794A /* NotificationService.swift */; };
 		8BC3BB467DB0B69177A426A6 /* GuestUpgradeModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED1BD4C45FDBA9D5BB228E91 /* GuestUpgradeModal.swift */; };
@@ -82,9 +82,11 @@
 		6128E244814947692041C605 /* CurrencyRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyRateService.swift; sourceTree = "<group>"; };
 		63323319571AD5414DDA7BF4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		7004F88168ED832C754985F8 /* Base44Client.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Base44Client.swift; sourceTree = "<group>"; };
+		7004F88168ED832C754985F8 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
+		71A2B3C4D5E6F708192A3B4C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		7416601FBA65A4DF03C2794A /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearSpendApp.swift; sourceTree = "<group>"; };
+		82B3C4D5E6F708192A3B4C5D /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		8374184BADCED82878E8C7DA /* SubscriptionDetectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetectionService.swift; sourceTree = "<group>"; };
 		8783AB0C64763E7C3EB17D2E /* TopCategoriesList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopCategoriesList.swift; sourceTree = "<group>"; };
 		92A3FD2075815D7764A4F165 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
@@ -108,9 +110,9 @@
 		F5CF0F9646F942C4CC6A0117 /* RevenueCatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevenueCatService.swift; sourceTree = "<group>"; };
 		F62EF62C82FA2E73973F2FCF /* BudgetHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetHealthView.swift; sourceTree = "<group>"; };
 		F9843553DA32EFD54DEE2D0E /* Date+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Extensions.swift"; sourceTree = "<group>"; };
-		FEE903729902BE39166A2BED /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		FEEA4499252E32EC8832A7D2 /* QuickStatsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickStatsRow.swift; sourceTree = "<group>"; };
 		FF754C4718EE2FA129FFF025 /* TransactionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRow.swift; sourceTree = "<group>"; };
+		F1E2D3C4B5A6978877665544 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -120,6 +122,7 @@
 				EE72A78509591233B5656E8F /* AppViewModel.swift */,
 				9E7C1E97FA1DA73ABCF54132 /* Assets.xcassets */,
 				7CF0682827FBBA4C141FE22A /* ClearSpendApp.swift */,
+				8A9B0C1D2E3F405162738495 /* InfoPlist.strings */,
 				6F3E700BF9D1AB648D39688E /* PrivacyInfo.xcprivacy */,
 				D1957AA0782D52E8C5CC21F6 /* Extensions */,
 				81AB46CB90B4A4B3544ACA8B /* Models */,
@@ -224,8 +227,7 @@
 		BF4565FF10E238A4784A869B /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				FEE903729902BE39166A2BED /* AuthService.swift */,
-				7004F88168ED832C754985F8 /* Base44Client.swift */,
+				7004F88168ED832C754985F8 /* AIClient.swift */,
 				92A3FD2075815D7764A4F165 /* CacheService.swift */,
 				6128E244814947692041C605 /* CurrencyRateService.swift */,
 				7416601FBA65A4DF03C2794A /* NotificationService.swift */,
@@ -366,6 +368,8 @@
 			knownRegions = (
 				Base,
 				en,
+				ja,
+				"zh-Hans",
 			);
 			mainGroup = 27E183B63B4A89F859B7E3ED;
 			minimizedProjectReferenceProxies = 1;
@@ -385,6 +389,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D2237C26CDB74F2B96DC3E4 /* Assets.xcassets in Resources */,
+				7F6C5D4E3B2A190817263544 /* InfoPlist.strings in Resources */,
 				7BD9CD59B7F26B9A650CE40E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -413,6 +418,19 @@
 		};
 /* End PBXShellScriptBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		8A9B0C1D2E3F405162738495 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				71A2B3C4D5E6F708192A3B4C /* en */,
+				82B3C4D5E6F708192A3B4C5D /* ja */,
+				F1E2D3C4B5A6978877665544 /* zh-Hans */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin PBXSourcesBuildPhase section */
 		4C5AE07EE1948082FDC4F07C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -424,8 +442,7 @@
 				1DF171523AB35DDE0F1B03F1 /* AnimationPresets.swift in Sources */,
 				288DF207B38C368E3E2F2115 /* AnyCodable.swift in Sources */,
 				183D392CB6FCF1AA670D07B9 /* AppViewModel.swift in Sources */,
-				7F6A68208817EF0A9C70B46D /* AuthService.swift in Sources */,
-				187E5C6555EDFE78B3A1C7C6 /* Base44Client.swift in Sources */,
+				187E5C6555EDFE78B3A1C7C6 /* AIClient.swift in Sources */,
 				33EFDA2C544DBE2F24FB614E /* Budget.swift in Sources */,
 				00BEAF8970C657961B06A371 /* BudgetHealthView.swift in Sources */,
 				4F110A52AC7262614CE9CA6C /* CacheService.swift in Sources */,

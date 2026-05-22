@@ -1,0 +1,4 @@
+CFBundleDisplayName = "ClearSpend";
+NSCameraUsageDescription = "ClearSpend 需要使用相机来扫描收据。";
+NSMicrophoneUsageDescription = "ClearSpend 需要使用麦克风进行语音输入。";
+NSSpeechRecognitionUsageDescription = "ClearSpend 需要使用语音识别来转写你的语音输入。";

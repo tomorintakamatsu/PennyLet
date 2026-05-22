@@ -1,0 +1,4 @@
+CFBundleDisplayName = "ClearSpend";
+NSCameraUsageDescription = "ClearSpendはレシートをスキャンするためにカメラを使用します。";
+NSMicrophoneUsageDescription = "ClearSpendは音声入力のためにマイクを使用します。";
+NSSpeechRecognitionUsageDescription = "ClearSpendは音声入力を文字起こしするために音声認識を使用します。";

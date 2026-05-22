@@ -1,18 +1,9 @@
 import SwiftUI
 import Observation
-import AuthenticationServices
 
 @MainActor
 @Observable
 final class AppViewModel {
-    // Auth state
-    var isAuthenticated = false
-    var isLoadingAuth = true
-    var authError: String?
-
-    /// NOT @Observable — changed manually to avoid observation graph corruption during sign-in
-    @ObservationIgnored var isGuestMode = false
-
     // MARK: - Persistent Preferences
 
     private let prefs = UserDefaults.standard
@@ -31,6 +22,7 @@ final class AppViewModel {
         if let f = prefs.string(forKey: "app_font"), let fn = AppFont(rawValue: f) { font = fn }
         if let l = prefs.string(forKey: "app_language") { language = l }
         if let cr = prefs.string(forKey: "app_currency") { currency = cr }
+        isDeveloperMode = prefs.bool(forKey: developerModeKey)
     }
 
     // Data
@@ -65,6 +57,11 @@ final class AppViewModel {
            let g = try? decoder.decode([Goal].self, from: data) {
             goals = g
         }
+        if let data = prefs.data(forKey: "local_analysis_history"),
+           let h = try? decoder.decode([AnalysisHistory].self, from: data) {
+            analysisHistory = h
+        }
+        applyBudgetPreferences()
     }
 
     func checkAndNotifyBudgetAlerts() {
@@ -85,6 +82,9 @@ final class AppViewModel {
         if let data = try? JSONEncoder().encode(goals) {
             prefs.set(data, forKey: "local_goals")
         }
+        if let data = try? JSONEncoder().encode(analysisHistory) {
+            prefs.set(data, forKey: "local_analysis_history")
+        }
         prefs.synchronize()
     }
 
@@ -98,18 +98,13 @@ final class AppViewModel {
     }
 
     // Developer mode
-    var isDeveloperMode = false
-
-    // Retains Apple Sign In objects so they don't dealloc before callback
-    private var appleSignInDelegate: AppleSignInDelegate?
-    private var appleSignInController: ASAuthorizationController?
-
-    // Auth loading
-    var isAuthenticating = false
+    private let developerModeKey = "developer_mode_enabled"
+    var isDeveloperMode = false {
+        didSet { prefs.set(isDeveloperMode, forKey: developerModeKey) }
+    }
 
     // Usage limit alerts
-    private let client = Base44Client.shared
-    private let cache = CacheService.shared
+    private let aiClient = AIClient.shared
     let revenueCat = RevenueCatService()
     let proStatus = ProStatusService()
 
@@ -145,6 +140,10 @@ final class AppViewModel {
     func canUseFeature(_ feature: String) -> Bool {
         if isDeveloperMode { return true }
         return remainingUses(feature) > 0
+    }
+
+    func setDeveloperMode(_ enabled: Bool) {
+        isDeveloperMode = enabled
     }
 
     func remainingUses(_ feature: String) -> Int {
@@ -252,16 +251,117 @@ final class AppViewModel {
             payDay: budget.payDay,
             customCategories: customs
         )
-        Task {
-            do {
-                let updated: Budget = try await client.update(entity: "Budget", id: budget.id, data: data)
-                if let idx = budgets.firstIndex(where: { $0.id == budget.id }) {
-                    budgets[idx] = updated
-                }
-            } catch {
-                self.error = error.localizedDescription
-            }
+        updateBudgetLocally(data)
+    }
+
+    private func aiPersonalContext() -> String {
+        let summary = spendSummary
+        let budget = currentBudget
+        let monthlyIncome = budget?.monthlyIncome ?? 0
+        let essentials = budget?.monthlyEssentials ?? 0
+        let savingsGoal = budget?.monthlySavingsGoal ?? 0
+        let disposable = monthlyIncome - essentials - savingsGoal
+
+        let cal = Calendar.current
+        let monthTxns = transactions.filter { tx in
+            guard let date = tx.dateValue else { return false }
+            return cal.isDate(date, equalTo: Date(), toGranularity: .month)
         }
+        let monthExpenses = monthTxns.filter { $0.type == .expense }
+        let monthIncome = monthTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
+        let monthSpent = monthExpenses.reduce(0) { $0 + $1.amount }
+        let budgetPercent = disposable > 0 ? Int((monthSpent / disposable * 100).rounded()) : 0
+
+        let dateRange: String = {
+            let dates = transactions.compactMap(\.dateValue).sorted()
+            guard let first = dates.first, let last = dates.last else { return "No transaction history yet" }
+            return "\(shortDate(first)) to \(shortDate(last))"
+        }()
+
+        return [
+            "User financial profile:",
+            "- Currency: \(currency)",
+            "- Monthly income target: \(CurrencyFormat.format(monthlyIncome, currency: currency))",
+            "- Essentials: \(CurrencyFormat.format(essentials, currency: currency))",
+            "- Savings goal: \(CurrencyFormat.format(savingsGoal, currency: currency))",
+            "- Disposable budget: \(CurrencyFormat.format(disposable, currency: currency))",
+            "- Pay day: \(budget?.payDay.map(String.init) ?? "not set")",
+            "- Current month spent: \(CurrencyFormat.format(monthSpent, currency: currency)) (\(budgetPercent)% of disposable budget)",
+            "- Current month income recorded: \(CurrencyFormat.format(monthIncome, currency: currency))",
+            "- Safe daily spend: \(CurrencyFormat.format(summary.safeDaily, currency: currency))",
+            "- Days left this month: \(summary.daysLeft)",
+            "- Transaction history range: \(dateRange)",
+            "- Current month top categories: \(topCategoryLines(from: monthExpenses, limit: 5))",
+            "- Current month top merchants: \(topMerchantLines(from: monthExpenses, limit: 5))",
+            "- Largest current month expenses: \(transactionEvidenceLines(monthExpenses.sorted { $0.amount > $1.amount }, limit: 5))",
+            "- Goals: \(goalContextLines())"
+        ].joined(separator: "\n")
+    }
+
+    private func aiOutputRules(for analysisName: String) -> String {
+        """
+        Tailoring rules for \(analysisName):
+        - Write in \(promptLanguage).
+        - Make every sentence specific to the user's actual data.
+        - Mention exact amounts, categories, merchants, dates, or budget percentages from the data when possible.
+        - Avoid generic advice like "spend less", "make a budget", or "track your spending" unless tied to a specific category or merchant.
+        - If there is not enough data, say exactly what is missing and use the nearest available recent data instead of inventing a pattern.
+        - Give one clear next action with a realistic target amount or category to watch.
+        """
+    }
+
+    private func topCategoryLines(from txns: [Transaction], limit: Int) -> String {
+        let grouped = Dictionary(grouping: txns, by: { $0.category ?? "other" })
+            .mapValues { $0.reduce(0) { $0 + $1.amount } }
+            .sorted { $0.value > $1.value }
+            .prefix(limit)
+        guard !grouped.isEmpty else { return "none" }
+        return grouped.map { "\(categoryLabel($0.key, type: .expense)): \(CurrencyFormat.format($0.value, currency: currency))" }
+            .joined(separator: "; ")
+    }
+
+    private func topMerchantLines(from txns: [Transaction], limit: Int) -> String {
+        let named = txns.compactMap { tx -> (String, Double)? in
+            guard let merchant = tx.merchant?.trimmingCharacters(in: .whitespacesAndNewlines), !merchant.isEmpty else { return nil }
+            return (merchant, tx.amount)
+        }
+        let grouped = Dictionary(grouping: named, by: { $0.0 })
+            .mapValues { $0.reduce(0) { $0 + $1.1 } }
+            .sorted { $0.value > $1.value }
+            .prefix(limit)
+        guard !grouped.isEmpty else { return "none" }
+        return grouped.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }
+            .joined(separator: "; ")
+    }
+
+    private func transactionEvidenceLines(_ txns: [Transaction], limit: Int) -> String {
+        let items = txns.prefix(limit).map { tx in
+            let dateText = tx.dateValue.map(shortDate) ?? tx.date
+            let sign = tx.type == .income ? "+" : "-"
+            let merchant = tx.merchant?.isEmpty == false ? " at \(tx.merchant!)" : ""
+            let note = tx.note?.isEmpty == false ? " (\(tx.note!))" : ""
+            return "\(dateText): \(sign)\(CurrencyFormat.format(tx.amount, currency: currency)) \(categoryLabel(tx.category, type: tx.type))\(merchant)\(note)"
+        }
+        return items.isEmpty ? "none" : items.joined(separator: "; ")
+    }
+
+    private func goalContextLines() -> String {
+        let lines = goals.prefix(4).map { goal in
+            let progress = Int((goal.progress * 100).rounded())
+            let remaining = CurrencyFormat.format(goal.remainingAmount, currency: currency)
+            return "\(goal.name): \(progress)% funded, \(remaining) remaining"
+        }
+        return lines.isEmpty ? "none" : lines.joined(separator: "; ")
+    }
+
+    private func categoryLabel(_ id: String?, type: Transaction.TransactionType) -> String {
+        loc(AppCategory.category(for: id, type: type).label)
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     func generateForecast() async throws -> AIResult {
@@ -296,9 +396,15 @@ final class AppViewModel {
             let df = DateFormatter(); df.dateFormat = "MMM"
             return df.string(from: Date())
         }()
+        let recentEvidence = transactionEvidenceLines(
+            transactions.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) },
+            limit: 12
+        )
 
         let prompt = """
         You are a precise personal finance forecaster. Use ONLY the data below. NEVER invent numbers.
+
+        \(aiPersonalContext())
 
         This month's spending by category:
         \(catLines.isEmpty ? "No spending data this month." : catLines)
@@ -307,11 +413,16 @@ final class AppViewModel {
         Past months: \(pastMonthsData.map { "\($0.label): \(CurrencyFormat.format($0.spent, currency: currency))" }.joined(separator: ", "))
         Daily safe spend: \(CurrencyFormat.format(s.safeDaily, currency: currency))
         Days remaining: \(s.daysLeft)
+        Recent transaction evidence: \(recentEvidence)
 
-        INSTRUCTIONS: Write a 2-3 sentence forecast in \(promptLanguage).
-        - Predict whether they'll stay within budget.
-        - Suggest one specific category to cut back.
-        - Estimate next month's total spending.
+        \(aiOutputRules(for: "forecast"))
+        Return:
+        - summary: 2-3 sentences predicting whether they will stay within budget, with exact supporting numbers.
+        - forecast_amount: a numeric estimate of next month's total spending.
+        - top_forecasted_category: the category most likely to drive the forecast and why.
+        - saving_tip: one tailored action referencing a real category, merchant, or spending pattern.
+        - watch_item: one thing they should monitor next.
+        - confidence_reason: a short explanation of what data makes this forecast stronger or weaker.
         """
 
         let schema: [String: AnyCodable] = [
@@ -321,10 +432,12 @@ final class AppViewModel {
                 "forecast_amount": .object(["type": "number"]),
                 "top_forecasted_category": .object(["type": "string"]),
                 "saving_tip": .object(["type": "string"]),
+                "watch_item": .object(["type": "string"]),
+                "confidence_reason": .object(["type": "string"]),
             ]),
-            "required": .array([.string("summary")]),
+            "required": .array([.string("summary"), .string("forecast_amount"), .string("top_forecasted_category"), .string("saving_tip")]),
         ]
-        let raw = try await client.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
         let formatted = formatForecastResult(raw)
 
         // Compute chart data
@@ -337,8 +450,7 @@ final class AppViewModel {
 
         let now = ISO8601DateFormatter().string(from: Date())
         let historyData = AnalysisHistoryData(type: "forecast", content: formatted, analysisDate: now, categoryChartJSON: chartJSON(catChart), dailyChartJSON: chartJSON(trendData))
-        let saved: AnalysisHistory = try await client.create(entity: "AnalysisHistory", data: historyData)
-        analysisHistory.insert(saved, at: 0)
+        await saveAnalysisHistoryEntry(historyData)
 
         await incrementUsage("forecast")
         let res = AIResult(text: formatted, categoryChart: catChart, dailyChart: trendData)
@@ -360,203 +472,9 @@ final class AppViewModel {
             parts.append("\(l.topCategory): \(topCat)")
         }
         if let tip = json["saving_tip"] as? String { parts.append("\(l.suggestion): \(tip)") }
+        if let watch = json["watch_item"] as? String { parts.append("\(l.pattern): \(watch)") }
+        if let confidence = json["confidence_reason"] as? String { parts.append(confidence) }
         return parts.isEmpty ? raw : parts.joined(separator: "\n\n")
-    }
-
-    // MARK: - Auth
-
-    func checkAuth() async {
-        isLoadingAuth = true
-        if let token = AuthService.getToken() {
-            await client.setToken(token)
-            do {
-                user = try await client.me()
-                isAuthenticated = true
-                loadLocalData()
-            } catch let error as ClientError where error.localizedDescription.contains("unauthorized") || error.localizedDescription.contains("401") {
-                AuthService.deleteToken()
-                await client.setToken(nil)
-                continueAsGuest()
-                await finishGuestSetup()
-            } catch {
-                loadFromCache()
-                isAuthenticated = true
-            }
-        } else {
-            continueAsGuest()
-            await finishGuestSetup()
-        }
-        isLoadingAuth = false
-    }
-
-    func loginWithEmail(email: String, password: String) {
-        authError = nil
-        isAuthenticating = true
-        Task {
-            do {
-                let response = try await client.login(email: email, password: password)
-                guard let token = response.accessToken else {
-                    authError = "No access token received"
-                    isAuthenticating = false
-                    return
-                }
-                await completeSignIn(token: token)
-                isAuthenticating = false
-            } catch {
-                authError = error.localizedDescription
-                isAuthenticating = false
-            }
-        }
-    }
-
-    var pendingOTPEmail = ""
-    var showOTPEntry = false
-
-    func registerWithEmail(email: String, password: String) {
-        authError = nil
-        isAuthenticating = true
-        Task {
-            do {
-                _ = try await client.register(email: email, password: password)
-                // Registration requires OTP verification
-                pendingOTPEmail = email
-                showOTPEntry = true
-                isAuthenticating = false
-            } catch {
-                authError = error.localizedDescription
-                isAuthenticating = false
-            }
-        }
-    }
-
-    func verifyOTPAndSignIn(code: String) {
-        authError = nil
-        isAuthenticating = true
-        let email = pendingOTPEmail
-        Task {
-            do {
-                let response = try await client.verifyOtp(email: email, otpCode: code)
-                guard let token = response.accessToken else {
-                    authError = "No access token received"
-                    isAuthenticating = false
-                    return
-                }
-                await completeSignIn(token: token)
-                isAuthenticating = false
-                showOTPEntry = false
-                pendingOTPEmail = ""
-            } catch {
-                authError = error.localizedDescription
-                isAuthenticating = false
-            }
-        }
-    }
-
-    func startAppleSignIn() {
-        authError = nil
-        isAuthenticating = true
-        let appleIDProvider = ASAuthorizationAppleIDProvider()
-        let request = appleIDProvider.createRequest()
-        request.requestedScopes = [.fullName, .email]
-
-        let controller = ASAuthorizationController(authorizationRequests: [request])
-        let delegate = AppleSignInDelegate { [weak self] result in
-            self?.appleSignInDelegate = nil
-            self?.appleSignInController = nil
-            Task { @MainActor in
-                await self?.handleAppleResult(result)
-            }
-        }
-        self.appleSignInDelegate = delegate
-        self.appleSignInController = controller
-        controller.delegate = delegate
-        controller.presentationContextProvider = AuthPresentationProvider.shared
-        controller.performRequests()
-    }
-
-    private func handleAppleResult(_ result: Result<ASAuthorization, Error>) async {
-        switch result {
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let identityToken = credential.identityToken,
-                  let tokenString = String(data: identityToken, encoding: .utf8) else {
-                authError = "Invalid Apple credential"
-                isAuthenticating = false
-                return
-            }
-
-            // Decode JWT payload to get Apple user ID and email
-            let jwtPayload: [String: Any]? = {
-                let parts = tokenString.components(separatedBy: ".")
-                guard parts.count >= 2 else { return nil }
-                var padded = parts[1]
-                while padded.count % 4 != 0 { padded += "=" }
-                guard let data = Data(base64Encoded: padded.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")) else { return nil }
-                return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            }()
-
-            guard let appleID = jwtPayload?["sub"] as? String else {
-                authError = "Could not read Apple ID"
-                isAuthenticating = false
-                return
-            }
-
-            // Use Apple's real email from credential (first sign-in) or JWT (subsequent)
-            let email = credential.email ?? (jwtPayload?["email"] as? String)
-            let fullName = credential.fullName.map { name in
-                [name.givenName, name.familyName].compactMap { $0 }.joined(separator: " ")
-            }
-
-            // Deterministic credentials from Apple user ID
-            let accountEmail = email ?? "\(String(appleID.suffix(12)))@clearspend.app"
-            let accountPassword = "apple_\(appleID.suffix(16))"
-
-            do {
-                let response: Base44Client.AuthResponse
-                do {
-                    response = try await client.login(email: accountEmail, password: accountPassword)
-                } catch {
-                    response = try await client.register(email: accountEmail, password: accountPassword)
-                    if let realName = fullName {
-                        _ = try? await client.updateMe(data: ["name": .string(realName)])
-                    }
-                }
-
-                guard let accessToken = response.accessToken else {
-                    authError = "No access token received"
-                    isAuthenticating = false
-                    return
-                }
-                await completeSignIn(token: accessToken)
-                isAuthenticating = false
-            } catch {
-                authError = error.localizedDescription
-                isAuthenticating = false
-            }
-        case .failure(let error):
-            if let authError = error as? ASAuthorizationError,
-               authError.code == .canceled {
-                isAuthenticating = false
-                return
-            }
-            self.authError = error.localizedDescription
-            isAuthenticating = false
-        }
-    }
-
-    private func completeSignIn(token: String) async {
-        AuthService.storeToken(token)
-        await client.setToken(token)
-        do {
-            isGuestMode = false
-            user = try await client.me()
-            isAuthenticated = true
-            loadLocalData()
-        } catch {
-            AuthService.deleteToken()
-            await client.setToken(nil)
-            authError = error.localizedDescription
-        }
     }
 
     // MARK: - AI
@@ -577,24 +495,37 @@ final class AppViewModel {
         let todayIncome = todayTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         let txnLines = todayTxns.map { tx in
             let symbol = tx.type == .income ? "+" : "-"
-            return "\(symbol)\(CurrencyFormat.format(tx.amount, currency: currency)) \(tx.category ?? "uncategorized") \(tx.merchant ?? "")"
+            let merchant = tx.merchant?.isEmpty == false ? " at \(tx.merchant!)" : ""
+            return "\(symbol)\(CurrencyFormat.format(tx.amount, currency: currency)) \(categoryLabel(tx.category, type: tx.type))\(merchant)"
         }.joined(separator: "\n")
+        let recentTxns = transactions.filter { tx in
+            guard let date = tx.dateValue else { return false }
+            return Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 999 <= 14
+        }.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) }
 
         let prompt = """
         You are a precise personal finance assistant. Use ONLY the data below. NEVER invent numbers.
 
+        \(aiPersonalContext())
+
         Today's transactions:
         \(txnLines.isEmpty ? "No transactions today." : txnLines)
+
+        Recent 14-day transaction evidence:
+        \(transactionEvidenceLines(recentTxns, limit: 12))
 
         Totals:
         - Spent: \(CurrencyFormat.format(todaySpent, currency: currency))
         - Income: \(CurrencyFormat.format(todayIncome, currency: currency))
         - Daily safe spend: \(CurrencyFormat.format(summary.safeDaily, currency: currency))
 
-        INSTRUCTIONS: Output in \(promptLanguage).
-        - title: A short headline summarizing today (e.g. "On track" or "Over budget warning").
-        - summary: 1-2 sentences comparing today's spend to the safe daily limit.
-        - top_category: The highest-spend category today with its amount, or "none".
+        \(aiOutputRules(for: "daily analysis"))
+        Return:
+        - title: A short headline tied to today's actual numbers.
+        - summary: 1-2 sentences comparing today's spend to the safe daily limit, using recent data if today has no transactions.
+        - top_category: the highest-spend category today with amount, or the most relevant recent category if today has no transactions.
+        - why: the exact evidence behind the insight.
+        - action: one specific action for the next 24 hours.
         \(isPro ? "- unusual: Flag any transaction that is unusually large or out of pattern compared to normal spending, or say \\\"none\\\"." : "")
         """
 
@@ -603,6 +534,8 @@ final class AppViewModel {
                 "title": .object(["type": "string"]),
                 "summary": .object(["type": "string"]),
                 "top_category": .object(["type": "string"]),
+                "why": .object(["type": "string"]),
+                "action": .object(["type": "string"]),
             ]
             if isPro { p["unusual"] = .object(["type": "string"]) }
             return p
@@ -611,16 +544,15 @@ final class AppViewModel {
         let schema: [String: AnyCodable] = [
             "type": "object",
             "properties": .object(props),
-            "required": .array([.string("title"), .string("summary"), .string("top_category")]),
+            "required": .array([.string("title"), .string("summary"), .string("top_category"), .string("why"), .string("action")]),
         ]
 
-        let raw = try await client.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
         let formatted = formatResult(raw, type: "daily")
 
         let today = ISO8601DateFormatter().string(from: Date())
         let historyData = AnalysisHistoryData(type: "daily", content: formatted, analysisDate: today, categoryChartJSON: nil, dailyChartJSON: nil)
-        let saved: AnalysisHistory = try await client.create(entity: "AnalysisHistory", data: historyData)
-        analysisHistory.insert(saved, at: 0)
+        await saveAnalysisHistoryEntry(historyData)
 
         await incrementUsage("daily")
         let res = AIResult(text: formatted, categoryChart: [], dailyChart: [])
@@ -652,9 +584,19 @@ final class AppViewModel {
 
         let catLines = thisWeekByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
         let lastCatLines = lastWeekByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
+        let thisWeekEvidence = transactionEvidenceLines(
+            thisWeekTxns.sorted { $0.amount > $1.amount },
+            limit: 8
+        )
+        let lastWeekEvidence = transactionEvidenceLines(
+            lastWeekTxns.sorted { $0.amount > $1.amount },
+            limit: 6
+        )
 
         let prompt = """
         You are a precise personal finance analyst. Use ONLY the data below. NEVER invent numbers.
+
+        \(aiPersonalContext())
 
         This week's spending by category: \(catLines.isEmpty ? "none" : catLines)
         Last week's spending by category: \(lastCatLines.isEmpty ? "none" : lastCatLines)
@@ -662,13 +604,18 @@ final class AppViewModel {
         Last week total spent: \(CurrencyFormat.format(lastWeekSpent, currency: currency))
         Daily safe spend: \(CurrencyFormat.format(summary.safeDaily, currency: currency))
         Days remaining this month: \(summary.daysLeft)
+        This week largest transactions: \(thisWeekEvidence)
+        Last week largest transactions: \(lastWeekEvidence)
 
-        INSTRUCTIONS: Output in \(promptLanguage).
-        - summary: 2 sentences comparing this week to last week, noting the biggest change in spending.
-        - top_category: The highest-spend category this week.
-        - vs_last_week: A comparison like "This week (+15% vs last week)" or "This week (-8% vs last week)" based on totals.
+        \(aiOutputRules(for: "weekly analysis"))
+        Return:
+        - summary: 2 sentences comparing this week to last week with exact totals and the largest driver.
+        - top_category: the highest-spend category this week with amount and reason.
+        - vs_last_week: a precise comparison like "This week (+15% vs last week)" or "This week (-8% vs last week)" based on totals.
+        - biggest_driver: the merchant, category, or transaction that best explains the change.
+        - action: one specific action for next week.
+        - watch_item: one recurring category or merchant to monitor.
         \(isPro ? "- tip: One specific, actionable spending tip for next week." : "")
-        \(isPro ? "- trend_data: An array of 4 objects with keys \\\"week\\\" (string like \\\"W1\\\", \\\"W2\\\") and \\\"categories\\\" (array of objects with \\\"name\\\" and \\\"amount\\\") representing the last 4 weeks of category spending for a trend chart. Use real category names from the data above." : "")
         """
 
         let props: [String: AnyCodable] = {
@@ -676,28 +623,12 @@ final class AppViewModel {
                 "summary": .object(["type": "string"]),
                 "top_category": .object(["type": "string"]),
                 "vs_last_week": .object(["type": "string"]),
+                "biggest_driver": .object(["type": "string"]),
+                "action": .object(["type": "string"]),
+                "watch_item": .object(["type": "string"]),
             ]
             if isPro {
                 p["tip"] = .object(["type": "string"])
-                p["trend_data"] = .object([
-                    "type": "array",
-                    "items": .object([
-                        "type": "object",
-                        "properties": .object([
-                            "week": .object(["type": "string"]),
-                            "categories": .object([
-                                "type": "array",
-                                "items": .object([
-                                    "type": "object",
-                                    "properties": .object([
-                                        "name": .object(["type": "string"]),
-                                        "amount": .object(["type": "number"]),
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
-                ])
             }
             return p
         }()
@@ -705,17 +636,16 @@ final class AppViewModel {
         let schema: [String: AnyCodable] = [
             "type": "object",
             "properties": .object(props),
-            "required": .array([.string("summary"), .string("top_category"), .string("vs_last_week")]),
+            "required": .array([.string("summary"), .string("top_category"), .string("vs_last_week"), .string("biggest_driver"), .string("action")]),
         ]
 
-        let raw = try await client.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
         let formatted = formatResult(raw, type: "weekly")
 
         let now = ISO8601DateFormatter().string(from: Date())
         let trendData = computeWeeklyTrend()
         let historyData = AnalysisHistoryData(type: "weekly", content: formatted, analysisDate: now, categoryChartJSON: nil, dailyChartJSON: chartJSON(trendData))
-        let saved: AnalysisHistory = try await client.create(entity: "AnalysisHistory", data: historyData)
-        analysisHistory.insert(saved, at: 0)
+        await saveAnalysisHistoryEntry(historyData)
 
         await incrementUsage("recap")
         let res = AIResult(text: formatted, categoryChart: [], dailyChart: trendData)
@@ -751,9 +681,16 @@ final class AppViewModel {
 
         let disposable = (budget?.monthlyIncome ?? 0) - (budget?.monthlyEssentials ?? 0) - (budget?.monthlySavingsGoal ?? 0)
         let budgetPct = disposable > 0 ? Int(min(100, (monthSpent / disposable) * 100)) : 0
+        let monthlyEvidence = transactionEvidenceLines(
+            monthTxns.filter { $0.type == .expense }.sorted { $0.amount > $1.amount },
+            limit: 10
+        )
+        let merchantEvidence = topMerchantLines(from: monthTxns.filter { $0.type == .expense }, limit: 6)
 
         let prompt = """
         You are a precise personal finance analyst. Use ONLY the data below. NEVER invent numbers.
+
+        \(aiPersonalContext())
 
         This month's spending by category: \(catLines.isEmpty ? "none" : catLines)
         Last month's spending by category: \(lastCatLines.isEmpty ? "none" : lastCatLines)
@@ -763,14 +700,18 @@ final class AppViewModel {
         Monthly budget (disposable): \(CurrencyFormat.format(disposable, currency: currency))
         Budget used: \(budgetPct)%
         Days remaining: \(s.daysLeft)
+        Top merchants this month: \(merchantEvidence)
+        Largest transactions this month: \(monthlyEvidence)
 
-        INSTRUCTIONS: Output in \(promptLanguage).
-        - headline: A short summary of budget adherence (e.g. "On track this month" or "Over budget").
-        - summary: 2-3 sentences analyzing overall spending vs budget, the biggest category changes from last month, and whether they're likely to stay within budget.
+        \(aiOutputRules(for: "monthly analysis"))
+        Return:
+        - headline: a short summary of budget adherence tied to the user's actual budget percentage.
+        - summary: 2-3 sentences analyzing overall spending vs budget, category changes, and likely month-end outcome.
         - budget_adherence: A comparison like "\(budgetPct)% of budget used with \(s.daysLeft) days left".
         - biggest_change: Which category changed the most from last month and by how much.
-        - next_step: One actionable recommendation for the remaining days.
-        - category_chart: An array of objects with "name" and "amount" for this month's spending by category (for a pie chart).
+        - next_step: one actionable recommendation for the remaining days with a realistic target amount.
+        - drivers: the specific merchants, categories, or transactions driving the result.
+        - watch_item: one category or merchant to monitor.
         """
 
         let schema: [String: AnyCodable] = [
@@ -781,28 +722,19 @@ final class AppViewModel {
                 "budget_adherence": .object(["type": "string"]),
                 "biggest_change": .object(["type": "string"]),
                 "next_step": .object(["type": "string"]),
-                "category_chart": .object([
-                    "type": "array",
-                    "items": .object([
-                        "type": "object",
-                        "properties": .object([
-                            "name": .object(["type": "string"]),
-                            "amount": .object(["type": "number"]),
-                        ])
-                    ])
-                ]),
+                "drivers": .object(["type": "string"]),
+                "watch_item": .object(["type": "string"]),
             ]),
-            "required": .array([.string("headline"), .string("summary")]),
+            "required": .array([.string("headline"), .string("summary"), .string("budget_adherence"), .string("biggest_change"), .string("next_step")]),
         ]
 
-        let raw = try await client.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+        let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
         let formatted = formatResult(raw, type: "monthly")
 
         let now = ISO8601DateFormatter().string(from: Date())
         let catChart = computeCategoryBreakdown()
         let historyData = AnalysisHistoryData(type: "monthly", content: formatted, analysisDate: now, categoryChartJSON: chartJSON(catChart), dailyChartJSON: nil)
-        let saved: AnalysisHistory = try await client.create(entity: "AnalysisHistory", data: historyData)
-        analysisHistory.insert(saved, at: 0)
+        await saveAnalysisHistoryEntry(historyData)
 
         await incrementUsage("insight")
         let res = AIResult(text: formatted, categoryChart: catChart, dailyChart: [])
@@ -821,19 +753,26 @@ final class AppViewModel {
             if let title = json["title"] as? String { parts.append(title) }
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let top = json["top_category"] as? String { parts.append("\(l.topCategory): \(top)") }
+            if let why = json["why"] as? String { parts.append("\(l.pattern): \(why)") }
+            if let action = json["action"] as? String { parts.append("\(l.nextStep): \(action)") }
             if let unusual = json["unusual"] as? String, unusual.lowercased() != "none" {
-                parts.append("⚠️ \(unusual)")
+                parts.append(unusual)
             }
         case "weekly":
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let top = json["top_category"] as? String { parts.append("\(l.topCategory): \(top)") }
             if let vs = json["vs_last_week"] as? String { parts.append(vs) }
-            if let tip = json["tip"] as? String { parts.append("💡 \(l.suggestion): \(tip)") }
+            if let driver = json["biggest_driver"] as? String { parts.append("\(l.pattern): \(driver)") }
+            if let watch = json["watch_item"] as? String { parts.append("\(l.suggestion): \(watch)") }
+            if let action = json["action"] as? String { parts.append("\(l.nextStep): \(action)") }
+            if let tip = json["tip"] as? String { parts.append("\(l.suggestion): \(tip)") }
         case "monthly":
             if let h = json["headline"] as? String { parts.append(h) }
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let adh = json["budget_adherence"] as? String { parts.append(adh) }
-            if let chg = json["biggest_change"] as? String { parts.append("📊 \(chg)") }
+            if let chg = json["biggest_change"] as? String { parts.append(chg) }
+            if let drivers = json["drivers"] as? String { parts.append("\(l.pattern): \(drivers)") }
+            if let watch = json["watch_item"] as? String { parts.append("\(l.suggestion): \(watch)") }
             if let next = json["next_step"] as? String { parts.append("\(l.nextStep): \(next)") }
         default:
             return raw
@@ -861,6 +800,21 @@ final class AppViewModel {
             }
         } ?? []
         return (cats, days)
+    }
+
+    private func saveAnalysisHistoryEntry(_ data: AnalysisHistoryData) async {
+        let localEntry = AnalysisHistory(
+            id: UUID().uuidString,
+            type: data.type,
+            content: data.content,
+            analysisDate: data.analysisDate,
+            createdDate: ISO8601DateFormatter().string(from: Date()),
+            categoryChartJSON: data.categoryChartJSON,
+            dailyChartJSON: data.dailyChartJSON
+        )
+
+        analysisHistory.insert(localEntry, at: 0)
+        saveLocalData()
     }
 
     func chartsForHistory(_ item: AnalysisHistory) -> (category: [(name: String, amount: Double)], daily: [(day: String, amount: Double)]) {
@@ -986,10 +940,6 @@ final class AppViewModel {
     private struct AILabels {
         let topCategory, pattern, suggestion: String
         let totalSpent, totalIncome, budgetUsed, nextStep: String
-    }
-
-    private var userCachePrefix: String {
-        "user_\(user?.id ?? "guest")_"
     }
 
     private var promptLanguage: String {
@@ -1234,6 +1184,21 @@ final class AppViewModel {
     var devModeUnlimited: String {
         switch language { case "ja": return "すべての機能が無制限になりました"; case "zh": return "所有功能现在无限制"; default: return "All features are now unlimited" }
     }
+    var developerToolsLabel: String {
+        switch language { case "ja": return "開発者ツール"; case "zh": return "开发者工具"; default: return "Developer Tools" }
+    }
+    var developerProAccessLabel: String {
+        switch language { case "ja": return "Proアクセス"; case "zh": return "Pro 访问权限"; default: return "Pro Access" }
+    }
+    var developerModeDisabledMessage: String {
+        switch language { case "ja": return "通常のサブスクリプション状態を使用中"; case "zh": return "正在使用正常订阅状态"; default: return "Using the normal subscription state" }
+    }
+    var developerUnlockMessage: String {
+        switch language { case "ja": return "設定でProアクセスを切り替えられます。"; case "zh": return "现在可以在设置中切换 Pro 访问权限。"; default: return "You can now toggle Pro access in Settings." }
+    }
+    var appVersionLabel: String {
+        switch language { case "ja": return "アプリバージョン"; case "zh": return "应用版本"; default: return "App Version" }
+    }
 
     // MARK: - Generic Localization
 
@@ -1244,8 +1209,8 @@ final class AppViewModel {
 
     func loc(_ key: String) -> String {
         switch language {
-        case "ja": return Self.jaDict[key] ?? LocalizationStrings.ja[key] ?? key
-        case "zh": return Self.zhDict[key] ?? LocalizationStrings.zh[key] ?? key
+        case "ja": return LocalizationStrings.ja[key] ?? Self.jaDict[key] ?? key
+        case "zh": return LocalizationStrings.zh[key] ?? Self.zhDict[key] ?? key
         default: return key
         }
     }
@@ -1254,8 +1219,8 @@ final class AppViewModel {
 // App
         "ClearSpend": "ClearSpend",
         "Track spending, reach goals": "支出を管理して目標を達成",
-        "Sign In with Base44": "Base44でサインイン",
-        "You'll be redirected to Base44 to sign in securely.": "安全にサインインするためBase44にリダイレクトされます。",
+        "Sign In with Cloud": "クラウドでサインイン",
+        "You'll be redirected to sign in securely.": "安全にサインインするためリダイレクトされます。",
         "Continue as Guest": "ゲストとして続ける",
         "Guest Mode": "ゲストモード",
         "Sign in to save your data and unlock all features.": "サインインしてデータを保存し、すべての機能を解放しましょう。",
@@ -1538,8 +1503,8 @@ final class AppViewModel {
 // App
         "ClearSpend": "ClearSpend",
         "Track spending, reach goals": "追踪支出，实现目标",
-        "Sign In with Base44": "通过Base44登录",
-        "You'll be redirected to Base44 to sign in securely.": "您将被重定向到Base44以安全登录。",
+        "Sign In with Cloud": "通过云端登录",
+        "You'll be redirected to sign in securely.": "您将被重定向以安全登录。",
         "Continue as Guest": "以游客身份继续",
         "Guest Mode": "游客模式",
         "Sign in to save your data and unlock all features.": "登录以保存数据并解锁所有功能。",
@@ -1818,198 +1783,21 @@ final class AppViewModel {
         "Exchange rates updated": "汇率已更新",
     ]
 
-    private func budgetToJSON(_ b: Budget) -> AnyCodable {
-        .object([
-            "id": .string(b.id),
-            "monthly_income": .double(b.monthlyIncome),
-            "monthly_essentials": b.monthlyEssentials.map { .double($0) } ?? .null,
-            "monthly_savings_goal": b.monthlySavingsGoal.map { .double($0) } ?? .null,
-            "currency": b.currency.map { .string($0) } ?? .null,
-            "language": b.language.map { .string($0) } ?? .null,
-            "theme": b.theme.map { .string($0) } ?? .null,
-            "font": b.font.map { .string($0) } ?? .null,
-            "color_mode": b.colorMode.map { .string($0) } ?? .null,
-            "pay_day": b.payDay.map { .int($0) } ?? .null,
-        ])
-    }
-
     func deleteAllData() async {
-        // Delete server data in order (transactions first, user last)
-        for tx in transactions {
-            _ = try? await client.delete(entity: "Transaction", id: tx.id)
-        }
-        for goal in goals {
-            _ = try? await client.delete(entity: "Goal", id: goal.id)
-        }
-        for item in analysisHistory {
-            _ = try? await client.delete(entity: "AnalysisHistory", id: item.id)
-        }
-        for budget in budgets {
-            _ = try? await client.delete(entity: "Budget", id: budget.id)
-        }
-        // Clear local state
         transactions = []
         budgets = []
         goals = []
         analysisHistory = []
-    }
-
-    func continueAsGuest() {
-        isGuestMode = true
-        isAuthenticated = true
-        isLoadingAuth = false
-        loadPreferencesFromDisk()
-        user = User(id: "guest", email: nil, name: "Guest", isPro: false, monthlyUsage: MonthlyUsage.empty, createdDate: nil)
-    }
-
-    func finishGuestSetup() async {
-        if let cached: [Budget] = await cache.load(forKey: "guest_budgets"), !cached.isEmpty {
-            budgets = cached
-        }
-        if let cached: [Transaction] = await cache.load(forKey: "guest_transactions") {
-            transactions = cached
-        }
-    }
-
-    func migrateGuestDataToAccount() async {
-        guard isGuestMode else { return }
-        for budget in budgets where budget.id.hasPrefix("guest-") {
-            let data = BudgetData(
-                monthlyIncome: budget.monthlyIncome,
-                monthlyEssentials: budget.monthlyEssentials,
-                monthlySavingsGoal: budget.monthlySavingsGoal,
-                payDay: budget.payDay,
-                currency: budget.currency,
-                language: budget.language,
-                theme: budget.theme,
-                colorMode: budget.colorMode,
-                font: budget.font
-            )
-            if let created: Budget = try? await client.create(entity: "Budget", data: data) {
-                budgets = [created]
-            }
-        }
-        for txn in transactions where txn.id.hasPrefix("guest-") {
-            let data = TransactionData(
-                amount: txn.amount, type: txn.type, category: txn.category,
-                note: txn.note, date: txn.date, merchant: txn.merchant,
-                description: txn.description, isRecurring: txn.isRecurring, tags: txn.tags
-            )
-            let _: Transaction? = try? await client.create(entity: "Transaction", data: data)
-        }
-        isGuestMode = false
-        loadLocalData()
-        await cache.clear()
-    }
-
-    private func loadGuestCache() async {
-        if let cached: [Budget] = await cache.load(forKey: "guest_budgets"), !cached.isEmpty {
-            budgets = cached
-        }
-        if let cached: [Transaction] = await cache.load(forKey: "guest_transactions") {
-            transactions = cached
-        }
-    }
-
-    func saveGuestCache() {
-        guard isGuestMode else { return }
-        let currentBudgets = budgets
-        let currentTxns = transactions
-        Task {
-            await cache.cache(currentBudgets, forKey: "guest_budgets")
-            await cache.cache(currentTxns, forKey: "guest_transactions")
-        }
-    }
-
-    func signOut() {
-        AuthService.deleteToken()
-        Task {
-            await client.setToken(nil)
-            await cache.clear()
-        }
-        prefs.removeObject(forKey: "last_user_id")
-        isAuthenticated = false
-        isGuestMode = false
         user = nil
-        transactions = []
-        budgets = []
-        goals = []
-        analysisHistory = []
-        continueAsGuest()
+        saveLocalData()
     }
 
     // MARK: - Data Loading
 
     func refreshAll() async {
-        // Reload from local storage only — no server calls
         loadLocalData()
+        applyBudgetPreferences()
         isLoadingData = false
-    }
-
-    private func loadTransactions() async {
-        do {
-            let data: [Transaction] = try await client.list(entity: "Transaction", sort: "-date", limit: 500)
-            transactions = data
-            await cache.cache(data, forKey: "\(userCachePrefix)transactions")
-        } catch let fetchError {
-            if let cached: [Transaction] = await cache.load(forKey: "\(userCachePrefix)transactions") {
-                transactions = cached
-            }
-            if transactions.isEmpty { error = fetchError.localizedDescription }
-        }
-    }
-
-    private func loadBudgets() async {
-        do {
-            let data: [Budget] = try await client.list(entity: "Budget", sort: "-created_date", limit: 1)
-            budgets = data
-            await cache.cache(data, forKey: "\(userCachePrefix)budgets")
-            applyBudgetPreferences()
-        } catch {
-            if let cached: [Budget] = await cache.load(forKey: "\(userCachePrefix)budgets") {
-                budgets = cached
-                applyBudgetPreferences()
-            }
-        }
-    }
-
-    private func loadGoals() async {
-        do {
-            let data: [Goal] = try await client.list(entity: "Goal", sort: "-created_date", limit: 50)
-            goals = data
-            await cache.cache(data, forKey: "\(userCachePrefix)goals")
-        } catch {
-            if let cached: [Goal] = await cache.load(forKey: "\(userCachePrefix)goals") {
-                goals = cached
-            }
-        }
-    }
-
-    private func loadAnalysisHistory() async {
-        do {
-            let data: [AnalysisHistory] = try await client.list(entity: "AnalysisHistory", sort: "-created_date", limit: 30)
-            analysisHistory = data
-            await cache.cache(data, forKey: "\(userCachePrefix)analysis_history")
-        } catch {
-            if let cached: [AnalysisHistory] = await cache.load(forKey: "\(userCachePrefix)analysis_history") {
-                analysisHistory = cached
-            }
-        }
-    }
-
-    private func loadFromCache() {
-        Task {
-            if let cached: [Transaction] = await cache.load(forKey: "\(userCachePrefix)transactions") {
-                transactions = cached
-            }
-            if let cached: [Budget] = await cache.load(forKey: "\(userCachePrefix)budgets") {
-                budgets = cached
-                applyBudgetPreferences()
-            }
-            if let cached: [Goal] = await cache.load(forKey: "\(userCachePrefix)goals") {
-                goals = cached
-            }
-        }
     }
 
     private func applyBudgetPreferences() {
@@ -2054,39 +1842,32 @@ final class AppViewModel {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
             transactions.removeAll { $0.id == id }
         }
-        if isGuestMode {
-            saveGuestCache()
-            return
-        }
-        do {
-            try await client.delete(entity: "Transaction", id: id)
-        } catch {
-            self.error = error.localizedDescription
-            saveLocalData()
-        }
+        saveLocalData()
     }
 
     func updateBudget(_ data: BudgetData) async {
-        guard let budget = currentBudget else { return }
-        do {
-            let updated: Budget = try await client.update(entity: "Budget", id: budget.id, data: data)
-            if let idx = budgets.firstIndex(where: { $0.id == budget.id }) {
-                budgets[idx] = updated
-            }
-        } catch {
-            self.error = error.localizedDescription
-        }
+        updateBudgetLocally(data)
     }
 
     func addGoal(_ data: GoalData) async {
-        do {
-            let created: Goal = try await client.create(entity: "Goal", data: data)
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                goals.append(created)
-            }
-        } catch {
-            self.error = error.localizedDescription
+        let now = ISO8601DateFormatter().string(from: Date())
+        let goal = Goal(
+            id: UUID().uuidString,
+            name: data.name,
+            targetAmount: data.targetAmount,
+            currentAmount: data.currentAmount ?? 0,
+            targetDate: data.targetDate,
+            category: data.category,
+            paymentAmount: data.paymentAmount,
+            frequency: data.frequency,
+            startDate: data.startDate,
+            createdDate: now,
+            updatedDate: now
+        )
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            goals.append(goal)
         }
+        saveLocalData()
     }
 
     func updateGoalAmount(id: String, newAmount: Double) async {
@@ -2099,20 +1880,10 @@ final class AppViewModel {
             targetDate: optimistic.targetDate, category: optimistic.category,
             paymentAmount: optimistic.paymentAmount, frequency: optimistic.frequency,
             startDate: optimistic.startDate,
-            createdDate: optimistic.createdDate, updatedDate: optimistic.updatedDate
+            createdDate: optimistic.createdDate,
+            updatedDate: ISO8601DateFormatter().string(from: Date())
         )
-        do {
-            let data = GoalData(
-                name: optimistic.name,
-                targetAmount: optimistic.targetAmount,
-                currentAmount: newAmount
-            )
-            let updated: Goal = try await client.update(entity: "Goal", id: id, data: data)
-            goals[idx] = updated
-        } catch {
-            goals[idx] = optimistic
-            self.error = error.localizedDescription
-        }
+        saveLocalData()
     }
 
     func deleteGoal(_ goal: Goal) async {
@@ -2120,12 +1891,7 @@ final class AppViewModel {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
             goals.removeAll { $0.id == id }
         }
-        do {
-            try await client.delete(entity: "Goal", id: id)
-        } catch {
-            self.error = error.localizedDescription
-            saveLocalData()
-        }
+        saveLocalData()
     }
 
     func deleteAnalysisHistory(_ item: AnalysisHistory) async {
@@ -2134,55 +1900,11 @@ final class AppViewModel {
 
     func deleteAnalysisHistoryById(_ id: String) async {
         analysisHistory.removeAll { $0.id == id }
-        do {
-            try await client.delete(entity: "AnalysisHistory", id: id)
-        } catch {
-            self.error = error.localizedDescription
-            saveLocalData()
-        }
+        saveLocalData()
     }
 
     var needsOnboarding: Bool {
         guard !isLoading else { return false }
         return budgets.isEmpty
-    }
-}
-
-// MARK: - Apple Sign In Delegate
-
-final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate {
-    private let completion: (Result<ASAuthorization, Error>) -> Void
-
-    init(completion: @escaping (Result<ASAuthorization, Error>) -> Void) {
-        self.completion = completion
-    }
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        completion(.success(authorization))
-    }
-
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        completion(.failure(error))
-    }
-}
-
-// MARK: - ASWebAuthenticationSession Presentation Context
-
-final class AuthPresentationProvider: NSObject, ASWebAuthenticationPresentationContextProviding, ASAuthorizationControllerPresentationContextProviding {
-    static let shared = AuthPresentationProvider()
-
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        keyWindow
-    }
-
-    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        keyWindow
-    }
-
-    private var keyWindow: ASPresentationAnchor {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows
-            .first(where: { $0.isKeyWindow }) ?? UIWindow()
     }
 }

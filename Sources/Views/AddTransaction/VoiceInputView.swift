@@ -199,7 +199,7 @@ struct VoiceInputView: View {
         """
 
         do {
-            let result = try await Base44Client.shared.invokeLLM(
+            let result = try await AIClient.shared.invokeLLM(
                 prompt: prompt, responseJSONSchema: schema)
             guard let jsonData = result.data(using: .utf8),
                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {

@@ -12,6 +12,9 @@ struct SettingsView: View {
     @State private var showFileNamePrompt = false
     @State private var pendingResetAfterExport = false
     @State private var ratesRefreshed = false
+    @State private var developerTapCount = 0
+    @State private var showDeveloperControls = false
+    @State private var showDeveloperUnlockAlert = false
 
     // Editable budget fields
     @State private var incomeText: String = ""
@@ -39,6 +42,9 @@ struct SettingsView: View {
             analysisSection
             dataSection
             accountSection
+            if showDeveloperControls || viewModel.isDeveloperMode {
+                developerSection
+            }
             legalSection
         }
         .navigationTitle(viewModel.settingsTitle)
@@ -76,6 +82,11 @@ struct SettingsView: View {
             Button(viewModel.cancelLabel, role: .cancel) {}
         } message: {
             Text(viewModel.loc("Save your data as CSV before resetting? All local data will be cleared."))
+        }
+        .alert(viewModel.devModeEnabled, isPresented: $showDeveloperUnlockAlert) {
+            Button(viewModel.okLabel, role: .cancel) {}
+        } message: {
+            Text(viewModel.developerUnlockMessage)
         }
     }
 
@@ -323,11 +334,38 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         Section(viewModel.accountSectionLabel) {
+            Button {
+                registerDeveloperTap()
+            } label: {
+                HStack {
+                    Label(viewModel.appVersionLabel, systemImage: "info.circle")
+                    Spacer()
+                    Text(appVersionString)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
             Button(role: .destructive) {
                 showResetConfirm = true
             } label: {
                 Label(viewModel.loc("Export & Reset"), systemImage: "arrow.counterclockwise")
             }
+        }
+    }
+
+    private var developerSection: some View {
+        Section(viewModel.developerToolsLabel) {
+            Toggle(isOn: Binding(
+                get: { viewModel.isDeveloperMode },
+                set: { viewModel.setDeveloperMode($0) }
+            )) {
+                Label(viewModel.developerProAccessLabel, systemImage: viewModel.isDeveloperMode ? "crown.fill" : "crown")
+            }
+
+            Text(viewModel.isDeveloperMode ? viewModel.devModeUnlimited : viewModel.developerModeDisabledMessage)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -343,6 +381,24 @@ struct SettingsView: View {
     }
 
     // MARK: - Actions
+
+    private var appVersionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        return build.map { "\(version) (\($0))" } ?? version
+    }
+
+    private func registerDeveloperTap() {
+        guard !showDeveloperControls else { return }
+        developerTapCount += 1
+        if developerTapCount >= 5 {
+            developerTapCount = 0
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                showDeveloperControls = true
+            }
+            showDeveloperUnlockAlert = true
+        }
+    }
 
     private func scheduleBudgetSave() {
         budgetSaveTimer?.cancel()

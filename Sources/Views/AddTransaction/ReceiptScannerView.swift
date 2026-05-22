@@ -28,9 +28,6 @@ struct ReceiptScannerView: View {
         var editPrice: String
     }
     @State private var showDocumentScanner = false
-    @State private var showGuestUpgradePrompt = false
-    @State private var showSignInSheet = false
-    @State private var signInRegisterMode = false
     @State private var navigateToUpgrade = false
 
     var onResult: ((amount: Double?, category: String?, merchant: String?)) -> Void = { _ in }
@@ -176,11 +173,7 @@ struct ReceiptScannerView: View {
                 .foregroundStyle(.secondary)
             if !viewModel.isPro {
                 Button {
-                    if viewModel.isGuestMode {
-                        showGuestUpgradePrompt = true
-                    } else {
-                        navigateToUpgrade = true
-                    }
+                    navigateToUpgrade = true
                 } label: {
                     Text(viewModel.upgradeToProLabel)
                         .font(.headline)
@@ -192,17 +185,6 @@ struct ReceiptScannerView: View {
             }
         }
         .frame(maxHeight: .infinity)
-        .sheet(isPresented: $showGuestUpgradePrompt) {
-            GuestUpgradeModal(showSignInSheet: $showSignInSheet, signInRegisterMode: $signInRegisterMode)
-                .environment(viewModel)
-        }
-        .sheet(isPresented: $showSignInSheet) {
-            SignInView(startInRegisterMode: signInRegisterMode)
-                .environment(viewModel)
-        }
-        .onChange(of: viewModel.isAuthenticating) { _, new in
-            if !new, !viewModel.isGuestMode { showSignInSheet = false }
-        }
         .sheet(isPresented: $navigateToUpgrade) {
             UpgradeView()
         }
@@ -239,7 +221,7 @@ struct ReceiptScannerView: View {
 
                 ForEach($lineItems) { $item in
                     HStack(spacing: 8) {
-                        TextField("Item", text: $item.editName)
+                        TextField(viewModel.loc("Item"), text: $item.editName)
                             .font(.subheadline)
                         TextField("0.00", text: $item.editPrice)
                             .keyboardType(.decimalPad)
@@ -367,7 +349,7 @@ struct ReceiptScannerView: View {
             return
         }
 
-        // Step 2: AI extraction via Base44 LLM
+        // Step 2: AI extraction
         processingStep = viewModel.loc("Analyzing with AI...")
         let prompt = """
         You are a receipt itemizer for Chinese (中文), Japanese (日本語), and English receipts. Extract EVERY purchased item. The text below is organized line by line exactly as it appears on the receipt.
@@ -432,7 +414,7 @@ struct ReceiptScannerView: View {
         ]
 
         do {
-            let result = try await Base44Client.shared.invokeLLM(prompt: prompt, responseJSONSchema: schema)
+            let result = try await AIClient.shared.invokeLLM(prompt: prompt, responseJSONSchema: schema)
             guard let jsonData = result.data(using: .utf8),
                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
                 error = viewModel.loc("Could not parse receipt. Try again.")

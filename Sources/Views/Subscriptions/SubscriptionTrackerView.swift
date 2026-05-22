@@ -179,7 +179,7 @@ struct SubscriptionTrackerView: View {
                 HStack(spacing: 4) {
                     Text(formatPrice(sub.price, sub.currencyCode))
                         .font(.caption.weight(.medium))
-                    Text("· \(sub.period)")
+                    Text("· \(viewModel.loc(sub.period))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -187,7 +187,7 @@ struct SubscriptionTrackerView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.system(size: 8))
-                        Text("Renews \(renewal.formatted(.relative(presentation: .named)))")
+                        Text("\(viewModel.loc("Renews")) \(renewal.formatted(.relative(presentation: .named)))")
                     }
                     .font(.caption2)
                     .foregroundStyle(.tertiary)

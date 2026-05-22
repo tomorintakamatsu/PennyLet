@@ -52,7 +52,7 @@ struct UpgradeView: View {
                     comparisonTable
 
                     // Subscribe button
-                    if !viewModel.isGuestMode, let product = selectedProduct {
+                    if let product = selectedProduct {
                         Button {
                             Task { await purchase(product) }
                         } label: {

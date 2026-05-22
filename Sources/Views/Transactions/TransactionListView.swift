@@ -96,6 +96,14 @@ struct TransactionListView: View {
         guard let date = Date.fromDateString(dateStr) ?? Date.fromISOString(dateStr) else {
             return dateStr
         }
-        return date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        return date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().locale(dateLocale))
+    }
+
+    private var dateLocale: Locale {
+        switch viewModel.language {
+        case "ja": return Locale(identifier: "ja_JP")
+        case "zh": return Locale(identifier: "zh_Hans")
+        default: return Locale(identifier: "en_US")
+        }
     }
 }

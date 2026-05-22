@@ -6,15 +6,13 @@ struct AIFeaturesView: View {
     @State private var selectedTab = 0
     @State private var tabLoading: [Bool] = [false, false, false, false]
     @State private var tabErrors: [String?] = [nil, nil, nil, nil]
+    @State private var generationStartedAt: [Date?] = [nil, nil, nil, nil]
 
     private var tabResults: [AppViewModel.AIResult?] {
         [viewModel.currentDailyResult, viewModel.currentWeeklyResult, viewModel.currentMonthlyResult, viewModel.currentForecastResult]
     }
     @State private var showUpgradeSheet = false
     @State private var showUsageAlert = false
-    @State private var showGuestUpgradePrompt = false
-    @State private var showSignInSheet = false
-    @State private var signInRegisterMode = false
     @State private var selectedHistoryItem: AnalysisHistory?
 
     private var tabLabels: [String] {
@@ -56,17 +54,6 @@ struct AIFeaturesView: View {
             Button(viewModel.okLabel, role: .cancel) {}
         } message: {
             Text(viewModel.usageExhaustedProMessage)
-        }
-        .sheet(isPresented: $showGuestUpgradePrompt) {
-            GuestUpgradeModal(showSignInSheet: $showSignInSheet, signInRegisterMode: $signInRegisterMode)
-                .environment(viewModel)
-        }
-        .sheet(isPresented: $showSignInSheet) {
-            SignInView(startInRegisterMode: signInRegisterMode)
-                .environment(viewModel)
-        }
-        .onChange(of: viewModel.isAuthenticating) { _, new in
-            if !new, !viewModel.isGuestMode { showSignInSheet = false }
         }
         .sheet(item: $selectedHistoryItem) { item in
             NavigationStack {
@@ -123,7 +110,7 @@ struct AIFeaturesView: View {
                 usageBadge(feature: "daily")
 
                 if tabLoading[0] {
-                    loadingView
+                    loadingView(for: 0)
                 } else if let result = tabResults[0] {
                     resultView(result, tab: 0)
                 } else if !viewModel.canUseFeature("daily") {
@@ -156,7 +143,7 @@ struct AIFeaturesView: View {
                 usageBadge(feature: "recap")
 
                 if tabLoading[1] {
-                    loadingView
+                    loadingView(for: 1)
                 } else if let result = tabResults[1] {
                     resultView(result, tab: 1)
                 } else if !viewModel.canUseFeature("recap") {
@@ -192,7 +179,7 @@ struct AIFeaturesView: View {
                     usageBadge(feature: "insight")
 
                     if tabLoading[2] {
-                        loadingView
+                        loadingView(for: 2)
                     } else if let result = tabResults[2] {
                         resultView(result, tab: 2)
                     } else if !viewModel.canUseFeature("insight") {
@@ -226,7 +213,7 @@ struct AIFeaturesView: View {
                 usageBadge(feature: "forecast")
 
                 if tabLoading[3] {
-                    loadingView
+                    loadingView(for: 3)
                 } else if let result = tabResults[3] {
                     resultView(result, tab: 3)
                 } else if !viewModel.canUseFeature("forecast") {
@@ -326,51 +313,110 @@ struct AIFeaturesView: View {
         .padding(.vertical, 40)
     }
 
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-            Text(viewModel.generatingLabel)
-                .font(.subheadline)
+    private func loadingView(for tab: Int) -> some View {
+        let startDate = generationStartedAt.indices.contains(tab) ? generationStartedAt[tab] ?? Date() : Date()
+        let estimate = estimatedGenerationDuration(for: tab)
+
+        return TimelineView(.periodic(from: startDate, by: 0.25)) { timeline in
+            let elapsed = timeline.date.timeIntervalSince(startDate)
+            let progress = estimatedProgress(elapsed: elapsed, estimate: estimate)
+            let remaining = max(0, Int(ceil(estimate - elapsed)))
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(viewModel.theme.primaryColor.opacity(0.14))
+                            .frame(width: 42, height: 42)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(viewModel.theme.primaryColor)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(progressTitle(for: tab))
+                            .font(.headline)
+                        Text(progressPhase(elapsed: elapsed, estimate: estimate))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Text("\(Int((progress * 100).rounded()))%")
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(viewModel.theme.primaryColor)
+                }
+
+                ProgressView(value: progress, total: 1)
+                    .tint(viewModel.theme.primaryColor)
+                    .scaleEffect(x: 1, y: 1.35, anchor: .center)
+                    .animation(.easeInOut(duration: 0.25), value: progress)
+
+                HStack {
+                    Label(remainingText(remaining: remaining, elapsed: elapsed, estimate: estimate), systemImage: "clock")
+                    Spacer()
+                    Text(typicalDurationText(for: estimate))
+                }
+                .font(.caption)
                 .foregroundStyle(.secondary)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(progressTitle(for: tab)), \(Int((progress * 100).rounded())) percent")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
     }
 
     private func resultView(_ r: AppViewModel.AIResult, tab: Int) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(viewModel.theme.primaryColor)
-                Text(viewModel.resultLabel)
-                    .font(.headline)
-                Spacer()
-                Button(viewModel.clearLabel) {
-                    switch tab {
-                    case 0: viewModel.currentDailyResult = nil
-                    case 1: viewModel.currentWeeklyResult = nil
-                    case 2: viewModel.currentMonthlyResult = nil
-                    case 3: viewModel.currentForecastResult = nil
-                    default: break
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(viewModel.theme.primaryColor)
+                    Text(viewModel.resultLabel)
+                        .font(.headline)
+                    Spacer()
+                    Button(viewModel.clearLabel) {
+                        switch tab {
+                        case 0: viewModel.currentDailyResult = nil
+                        case 1: viewModel.currentWeeklyResult = nil
+                        case 2: viewModel.currentMonthlyResult = nil
+                        case 3: viewModel.currentForecastResult = nil
+                        default: break
+                        }
+                    }
+                    .font(.caption)
+                }
+                Text(r.text)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if viewModel.isPro {
+                    if !r.categoryChart.isEmpty {
+                        categoryChartView(r.categoryChart)
+                    }
+                    if !r.dailyChart.isEmpty {
+                        dailyChartView(r.dailyChart)
                     }
                 }
-                .font(.caption)
             }
-            Text(r.text)
-                .font(.body)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
 
-            if viewModel.isPro {
-                if !r.categoryChart.isEmpty {
-                    categoryChartView(r.categoryChart)
-                }
-                if !r.dailyChart.isEmpty {
-                    dailyChartView(r.dailyChart)
-                }
+            Button {
+                generateAgain(for: tab)
+            } label: {
+                Label(viewModel.loc("Generate Again"), systemImage: "arrow.clockwise")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(viewModel.theme.primaryColor, in: RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(.plain)
         }
-        .padding(20)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Charts (Pro only)
@@ -567,11 +613,7 @@ struct AIFeaturesView: View {
     // MARK: - Actions
 
     private func showUpgradeOrGuestPrompt() {
-        if viewModel.isGuestMode {
-            showGuestUpgradePrompt = true
-        } else {
-            showUpgradeSheet = true
-        }
+        showUpgradeSheet = true
     }
 
     private func handleGenerate(feature: String, action: @escaping () async -> Void) {
@@ -584,9 +626,42 @@ struct AIFeaturesView: View {
         }
     }
 
+    private func generateAgain(for tab: Int) {
+        switch tab {
+        case 0:
+            handleGenerate(feature: "daily") {
+                await generate(for: 0) { try await viewModel.generateDailyAnalysis() }
+            }
+        case 1:
+            handleGenerate(feature: "recap") {
+                await generate(for: 1) { try await viewModel.generateWeeklyAnalysis() }
+            }
+        case 2:
+            handleGenerate(feature: "insight") {
+                await generate(for: 2) { try await viewModel.generateMonthlyAnalysis() }
+            }
+        case 3:
+            handleGenerate(feature: "forecast") {
+                await generate(for: 3) { try await viewModel.generateForecast() }
+            }
+        default:
+            break
+        }
+    }
+
     private func generate(for tab: Int, operation: @escaping () async throws -> AppViewModel.AIResult) async {
+        if generationStartedAt.indices.contains(tab) {
+            generationStartedAt[tab] = Date()
+        }
         tabLoading[tab] = true
         tabErrors[tab] = nil
+        defer {
+            tabLoading[tab] = false
+            if generationStartedAt.indices.contains(tab) {
+                generationStartedAt[tab] = nil
+            }
+        }
+
         // Clear current before generating new
         switch tab {
         case 0: viewModel.currentDailyResult = nil
@@ -600,7 +675,57 @@ struct AIFeaturesView: View {
         } catch {
             tabErrors[tab] = error.localizedDescription
         }
-        tabLoading[tab] = false
+    }
+
+    private func estimatedGenerationDuration(for tab: Int) -> TimeInterval {
+        switch tab {
+        case 0: return 12
+        case 1: return 18
+        case 2: return 24
+        case 3: return 16
+        default: return 18
+        }
+    }
+
+    private func estimatedProgress(elapsed: TimeInterval, estimate: TimeInterval) -> Double {
+        let raw = elapsed / max(estimate, 1)
+        if raw < 0.08 { return 0.08 }
+        return min(raw, 0.94)
+    }
+
+    private func progressTitle(for tab: Int) -> String {
+        switch tab {
+        case 0: return viewModel.loc("Preparing daily insight")
+        case 1: return viewModel.loc("Building weekly recap")
+        case 2: return viewModel.loc("Creating monthly insight")
+        case 3: return viewModel.loc("Forecasting spending")
+        default: return viewModel.generatingLabel
+        }
+    }
+
+    private func progressPhase(elapsed: TimeInterval, estimate: TimeInterval) -> String {
+        let ratio = elapsed / max(estimate, 1)
+        switch ratio {
+        case ..<0.22:
+            return viewModel.loc("Reading your spending data")
+        case ..<0.55:
+            return viewModel.loc("Finding patterns and outliers")
+        case ..<0.86:
+            return viewModel.loc("Writing tailored advice")
+        default:
+            return viewModel.loc("Finalizing your result")
+        }
+    }
+
+    private func remainingText(remaining: Int, elapsed: TimeInterval, estimate: TimeInterval) -> String {
+        if elapsed >= estimate {
+            return viewModel.loc("Almost done")
+        }
+        return "\(viewModel.loc("About")) \(remaining)s \(viewModel.loc("left"))"
+    }
+
+    private func typicalDurationText(for estimate: TimeInterval) -> String {
+        "\(viewModel.loc("Usually")) \(Int(estimate))s"
     }
 
     private var dateLocale: Locale {
