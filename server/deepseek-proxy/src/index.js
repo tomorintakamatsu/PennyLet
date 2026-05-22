@@ -5,6 +5,15 @@ const STRUCTURED_MAX_TOKENS = 2200;
 const RECEIPT_MAX_TOKENS = 2200;
 const TEXT_MAX_TOKENS = 1000;
 const STRUCTURED_TOOL_NAME = "return_clearspend_result";
+const FINANCE_ACCURACY_RULES = [
+  "Accuracy rules:",
+  "- The app provides the user's budget, transaction, merchant, category, date, goal, and pace evidence. Treat it as the only source of truth.",
+  "- Never invent transactions, merchants, income, categories, dates, goals, percentages, or forecasts that are not supported by the prompt.",
+  "- When making a claim, ground it in a specific amount, merchant, category, date range, percentage, or transaction from the prompt.",
+  "- If the data is too thin, state the limitation plainly and give the best useful next step from the available evidence.",
+  "- Keep outputs short, practical, and non-judgmental. Avoid generic financial advice.",
+  "- For forecasts, stay close to app-provided baselines unless a concrete category or merchant pattern justifies an adjustment."
+].join("\n");
 
 export default {
   async fetch(request, env) {
@@ -118,7 +127,8 @@ function buildPayload(env, prompt, responseJsonSchema, mode) {
     model: env.DEEPSEEK_MODEL,
     messages,
     thinking: { type: "disabled" },
-    temperature: 0.2,
+    temperature: 0.1,
+    top_p: 0.75,
     max_tokens: maxTokensFor(responseJsonSchema)
   };
 
@@ -204,7 +214,8 @@ function buildSystemPrompt(responseJsonSchema, mode) {
       "You are ClearSpend's financial assistant.",
       "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
       "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
-      "Be concise, practical, and accurate."
+      "Be concise, practical, and accurate.",
+      FINANCE_ACCURACY_RULES
     ].join("\n");
   }
 
@@ -216,9 +227,10 @@ function buildSystemPrompt(responseJsonSchema, mode) {
       "You are ClearSpend's financial assistant.",
       "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
       "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
+      FINANCE_ACCURACY_RULES,
       isReceiptSchema
         ? "Extract only visible receipt line items and keep merchant/category values concise."
-        : "Keep strings concise and specific. Do not add fields that are not in the schema.",
+        : "Keep strings concise and specific. Each string should be grounded in provided evidence. Do not add fields that are not in the schema.",
       `Call the ${STRUCTURED_TOOL_NAME} tool with the requested structured result.`
     ].join("\n");
   }
@@ -227,9 +239,10 @@ function buildSystemPrompt(responseJsonSchema, mode) {
     "You are ClearSpend's financial assistant.",
     "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
     "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
+    FINANCE_ACCURACY_RULES,
     isReceiptSchema
       ? "Extract only visible receipt line items and keep merchant/category values concise."
-      : "Keep the full JSON response concise: short strings, no extra fields, no long explanations.",
+      : "Keep the full JSON response concise: short strings, no extra fields, no long explanations. Ground every claim in provided evidence.",
     "Return only valid JSON. Do not include markdown, code fences, or explanatory text.",
     "Use this JSON schema as the required output shape:",
     schemaText

@@ -263,14 +263,16 @@ final class AppViewModel {
         let disposable = monthlyIncome - essentials - savingsGoal
 
         let cal = Calendar.current
+        let today = Date()
         let monthTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
-            return cal.isDate(date, equalTo: Date(), toGranularity: .month)
+            return cal.isDate(date, equalTo: today, toGranularity: .month)
         }
         let monthExpenses = monthTxns.filter { $0.type == .expense }
         let monthIncome = monthTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         let monthSpent = monthExpenses.reduce(0) { $0 + $1.amount }
         let budgetPercent = disposable > 0 ? Int((monthSpent / disposable * 100).rounded()) : 0
+        let projectedSpend = projectedMonthSpend(currentSpent: monthSpent, summary: summary)
 
         let dateRange: String = {
             let dates = transactions.compactMap(\.dateValue).sorted()
@@ -279,8 +281,13 @@ final class AppViewModel {
         }()
 
         return [
-            "User financial profile:",
+            "CLEARSPEND DATA SNAPSHOT",
+            "- Analysis date: \(shortDate(today))",
             "- Currency: \(currency)",
+            "- Data coverage: \(dataCoverageLine(transactions))",
+            "- Transaction history range: \(dateRange)",
+            "",
+            "Budget and pace:",
             "- Monthly income target: \(CurrencyFormat.format(monthlyIncome, currency: currency))",
             "- Essentials: \(CurrencyFormat.format(essentials, currency: currency))",
             "- Savings goal: \(CurrencyFormat.format(savingsGoal, currency: currency))",
@@ -288,25 +295,33 @@ final class AppViewModel {
             "- Pay day: \(budget?.payDay.map(String.init) ?? "not set")",
             "- Current month spent: \(CurrencyFormat.format(monthSpent, currency: currency)) (\(budgetPercent)% of disposable budget)",
             "- Current month income recorded: \(CurrencyFormat.format(monthIncome, currency: currency))",
+            "- Projected month-end spend at current pace: \(CurrencyFormat.format(projectedSpend, currency: currency))",
+            "- Expected spend by today: \(CurrencyFormat.format(summary.expectedSpent, currency: currency))",
+            "- Pace difference: \(CurrencyFormat.format(summary.paceDiff, currency: currency))",
             "- Safe daily spend: \(CurrencyFormat.format(summary.safeDaily, currency: currency))",
             "- Days left this month: \(summary.daysLeft)",
-            "- Transaction history range: \(dateRange)",
+            "",
+            "Current month evidence:",
             "- Current month top categories: \(topCategoryLines(from: monthExpenses, limit: 5))",
             "- Current month top merchants: \(topMerchantLines(from: monthExpenses, limit: 5))",
             "- Largest current month expenses: \(transactionEvidenceLines(monthExpenses.sorted { $0.amount > $1.amount }, limit: 5))",
+            "- Recent transactions: \(transactionEvidenceLines(transactions.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) }, limit: 10))",
             "- Goals: \(goalContextLines())"
         ].joined(separator: "\n")
     }
 
     private func aiOutputRules(for analysisName: String) -> String {
         """
-        Tailoring rules for \(analysisName):
+        Accuracy and writing rules for \(analysisName):
         - Write in \(promptLanguage).
-        - Make every sentence specific to the user's actual data.
-        - Mention exact amounts, categories, merchants, dates, or budget percentages from the data when possible.
-        - Avoid generic advice like "spend less", "make a budget", or "track your spending" unless tied to a specific category or merchant.
-        - If there is not enough data, say exactly what is missing and use the nearest available recent data instead of inventing a pattern.
-        - Give one clear next action with a realistic target amount or category to watch.
+        - Treat the provided ClearSpend data as the only source of truth.
+        - Every insight must cite at least one exact amount, category, merchant, date, percentage, or time window from the data.
+        - Do not invent missing transactions, income, merchants, dates, goals, or category changes.
+        - If the dataset is thin, say what is missing and use the nearest available evidence instead of giving generic advice.
+        - Keep the output short: practical, specific, and easy to act on in under 15 seconds.
+        - The action must be measurable: include a target amount, category, merchant, or time window.
+        - Avoid bland advice such as "track your spending", "make a budget", or "spend less" unless it is tied to a specific observed pattern.
+        - Use a calm, non-judgmental tone. No guilt, no moralizing.
         """
     }
 
@@ -326,11 +341,11 @@ final class AppViewModel {
             return (merchant, tx.amount)
         }
         let grouped = Dictionary(grouping: named, by: { $0.0 })
-            .mapValues { $0.reduce(0) { $0 + $1.1 } }
-            .sorted { $0.value > $1.value }
+            .mapValues { items in (amount: items.reduce(0) { $0 + $1.1 }, count: items.count) }
+            .sorted { $0.value.amount > $1.value.amount }
             .prefix(limit)
         guard !grouped.isEmpty else { return "none" }
-        return grouped.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }
+        return grouped.map { "\($0.key): \(CurrencyFormat.format($0.value.amount, currency: currency)) across \($0.value.count) transaction\($0.value.count == 1 ? "" : "s")" }
             .joined(separator: "; ")
     }
 
@@ -340,7 +355,9 @@ final class AppViewModel {
             let sign = tx.type == .income ? "+" : "-"
             let merchant = tx.merchant?.isEmpty == false ? " at \(tx.merchant!)" : ""
             let note = tx.note?.isEmpty == false ? " (\(tx.note!))" : ""
-            return "\(dateText): \(sign)\(CurrencyFormat.format(tx.amount, currency: currency)) \(categoryLabel(tx.category, type: tx.type))\(merchant)\(note)"
+            let original = originalCurrencyText(for: tx)
+            let recurring = tx.isRecurring ? " recurring" : ""
+            return "\(dateText): \(sign)\(CurrencyFormat.format(tx.amount, currency: currency))\(original) \(categoryLabel(tx.category, type: tx.type))\(merchant)\(recurring)\(note)"
         }
         return items.isEmpty ? "none" : items.joined(separator: "; ")
     }
@@ -352,6 +369,76 @@ final class AppViewModel {
             return "\(goal.name): \(progress)% funded, \(remaining) remaining"
         }
         return lines.isEmpty ? "none" : lines.joined(separator: "; ")
+    }
+
+    private func categoryComparisonLines(current: [Transaction], previous: [Transaction], limit: Int) -> String {
+        let currentTotals = categoryTotals(current)
+        let previousTotals = categoryTotals(previous)
+        let categoryIDs = Set(currentTotals.keys).union(previousTotals.keys)
+        let changes = categoryIDs.map { id -> (id: String, current: Double, previous: Double, delta: Double) in
+            let current = currentTotals[id] ?? 0
+            let previous = previousTotals[id] ?? 0
+            return (id, current, previous, current - previous)
+        }
+        .sorted { abs($0.delta) > abs($1.delta) }
+        .prefix(limit)
+
+        guard !changes.isEmpty else { return "none" }
+        return changes.map { item in
+            "\(categoryLabel(item.id, type: .expense)): \(CurrencyFormat.format(item.current, currency: currency)) now vs \(CurrencyFormat.format(item.previous, currency: currency)) before (\(changeText(current: item.current, previous: item.previous)))"
+        }.joined(separator: "; ")
+    }
+
+    private func categoryTotals(_ txns: [Transaction]) -> [String: Double] {
+        Dictionary(grouping: txns.filter { $0.type == .expense }, by: { $0.category ?? "other" })
+            .mapValues { $0.reduce(0) { $0 + $1.amount } }
+    }
+
+    private func changeText(current: Double, previous: Double) -> String {
+        let delta = current - previous
+        let direction = delta >= 0 ? "+" : "-"
+        let amount = "\(direction)\(CurrencyFormat.format(abs(delta), currency: currency))"
+        guard previous > 0 else {
+            return current > 0 ? "\(amount), new activity" : "\(amount), no activity"
+        }
+        let pct = Int((delta / previous * 100).rounded())
+        return "\(amount), \(pct >= 0 ? "+" : "")\(pct)%"
+    }
+
+    private func dataCoverageLine(_ txns: [Transaction]) -> String {
+        let dated = txns.compactMap(\.dateValue).sorted()
+        guard let first = dated.first, let last = dated.last else {
+            return "0 transactions"
+        }
+        let expenseCount = txns.filter { $0.type == .expense }.count
+        let incomeCount = txns.filter { $0.type == .income }.count
+        return "\(txns.count) transactions (\(expenseCount) expenses, \(incomeCount) income) from \(shortDate(first)) to \(shortDate(last))"
+    }
+
+    private func originalCurrencyText(for tx: Transaction) -> String {
+        guard let originalCurrency = tx.originalCurrency,
+              originalCurrency != currency,
+              let originalAmount = tx.originalAmount else {
+            return ""
+        }
+        return " [original \(CurrencyFormat.format(originalAmount, currency: originalCurrency))]"
+    }
+
+    private func projectedMonthSpend(currentSpent: Double, summary: SpendSummary) -> Double {
+        guard summary.dayOfMonth > 0, summary.totalDays > 0 else { return currentSpent }
+        return currentSpent / Double(summary.dayOfMonth) * Double(summary.totalDays)
+    }
+
+    private func jsonNumber(_ raw: String, key: String) -> Double? {
+        guard let data = raw.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = json[key] else {
+            return nil
+        }
+        if let double = value as? Double { return double }
+        if let int = value as? Int { return Double(int) }
+        if let number = value as? NSNumber { return number.doubleValue }
+        return nil
     }
 
     private func categoryLabel(_ id: String?, type: Transaction.TransactionType) -> String {
@@ -387,9 +474,14 @@ final class AppViewModel {
             pastMonthsData.append((df.string(from: monthStart), total))
         }
 
-        let byCategory: [String: Double] = Dictionary(grouping: thisMonth.filter { $0.type == .expense }, by: { $0.category ?? "other" })
+        let thisMonthExpenses = thisMonth.filter { $0.type == .expense }
+        let byCategory: [String: Double] = Dictionary(grouping: thisMonthExpenses, by: { $0.category ?? "other" })
             .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-        let catLines = byCategory.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: "\n")
+        let catLines = topCategoryLines(from: thisMonthExpenses, limit: 8)
+        let projectedThisMonth = projectedMonthSpend(currentSpent: thisMonthSpent, summary: s)
+        let nonZeroPastMonths = pastMonthsData.map { $0.spent }.filter { $0 > 0 }
+        let pastAverage = nonZeroPastMonths.isEmpty ? thisMonthSpent : nonZeroPastMonths.reduce(0, +) / Double(nonZeroPastMonths.count)
+        let localForecastBaseline = max(0, (projectedThisMonth * 0.6) + (pastAverage * 0.4))
 
         // Current month trend (weekly)
         let currentLabel = {
@@ -406,27 +498,32 @@ final class AppViewModel {
 
         \(aiPersonalContext())
 
+        FORECAST INPUTS
         This month's spending by category:
-        \(catLines.isEmpty ? "No spending data this month." : catLines)
+        \(catLines == "none" ? "No spending data this month." : catLines)
 
         This month: Spent \(CurrencyFormat.format(thisMonthSpent, currency: currency)), Income \(CurrencyFormat.format(thisMonthIncome, currency: currency))
         Past months: \(pastMonthsData.map { "\($0.label): \(CurrencyFormat.format($0.spent, currency: currency))" }.joined(separator: ", "))
+        Current pace projection for this month: \(CurrencyFormat.format(projectedThisMonth, currency: currency))
+        Local weighted forecast baseline: \(CurrencyFormat.format(localForecastBaseline, currency: currency)) (60% current pace + 40% recent-month average)
         Daily safe spend: \(CurrencyFormat.format(s.safeDaily, currency: currency))
         Days remaining: \(s.daysLeft)
         Recent transaction evidence: \(recentEvidence)
 
         \(aiOutputRules(for: "forecast"))
         Return:
-        - summary: 2-3 sentences predicting whether they will stay within budget, with exact supporting numbers.
-        - forecast_amount: a numeric estimate of next month's total spending.
-        - top_forecasted_category: the category most likely to drive the forecast and why.
-        - saving_tip: one tailored action referencing a real category, merchant, or spending pattern.
-        - watch_item: one thing they should monitor next.
-        - confidence_reason: a short explanation of what data makes this forecast stronger or weaker.
+        - summary: 2 short sentences predicting the next month using the baseline and recent evidence.
+        - forecast_amount: a numeric next-month spend estimate in \(currency). Keep it close to the baseline unless a specific category or merchant justifies a change.
+        - top_forecasted_category: category most likely to drive next month, with amount/evidence.
+        - saving_tip: one tailored action with a realistic target amount.
+        - watch_item: one category or merchant to monitor next.
+        - confidence_reason: High/Medium/Low plus the exact data reason.
+        - data_gap: "none" or the most important missing data that limits accuracy.
         """
 
         let schema: [String: AnyCodable] = [
             "type": "object",
+            "additionalProperties": .bool(false),
             "properties": .object([
                 "summary": .object(["type": "string"]),
                 "forecast_amount": .object(["type": "number"]),
@@ -434,17 +531,19 @@ final class AppViewModel {
                 "saving_tip": .object(["type": "string"]),
                 "watch_item": .object(["type": "string"]),
                 "confidence_reason": .object(["type": "string"]),
+                "data_gap": .object(["type": "string"]),
             ]),
-            "required": .array([.string("summary"), .string("forecast_amount"), .string("top_forecasted_category"), .string("saving_tip")]),
+            "required": .array([.string("summary"), .string("forecast_amount"), .string("top_forecasted_category"), .string("saving_tip"), .string("watch_item"), .string("confidence_reason"), .string("data_gap")]),
         ]
         let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
         let formatted = formatForecastResult(raw)
+        let forecastAmount = jsonNumber(raw, key: "forecast_amount") ?? localForecastBaseline
 
         // Compute chart data
         var trendData: [(String, Double)] = []
         for pm in pastMonthsData.reversed() { trendData.append((pm.label, pm.spent)) }
         trendData.append((currentLabel, thisMonthSpent))
-        trendData.append((loc("Next Month"), 0)) // placeholder for visual
+        trendData.append((loc("Next Month"), forecastAmount))
 
         let catChart = byCategory.map { (name: $0.key, amount: $0.value) }.sorted { $0.amount > $1.amount }.map { (name: $0.name, amount: $0.amount) }
 
@@ -465,15 +564,16 @@ final class AppViewModel {
         }
         var parts: [String] = []
         if let summary = json["summary"] as? String { parts.append(summary) }
-        if let forecast = json["forecast_amount"] as? Double {
+        if let forecast = jsonNumber(raw, key: "forecast_amount") {
             parts.append("\(l.totalSpent) (est): \(CurrencyFormat.format(forecast, currency: currency))")
         }
         if let topCat = json["top_forecasted_category"] as? String {
             parts.append("\(l.topCategory): \(topCat)")
         }
         if let tip = json["saving_tip"] as? String { parts.append("\(l.suggestion): \(tip)") }
-        if let watch = json["watch_item"] as? String { parts.append("\(l.pattern): \(watch)") }
-        if let confidence = json["confidence_reason"] as? String { parts.append(confidence) }
+        if let watch = json["watch_item"] as? String { parts.append("\(l.watchItem): \(watch)") }
+        if let confidence = json["confidence_reason"] as? String { parts.append("\(l.confidence): \(confidence)") }
+        if let gap = usefulOptionalText(json["data_gap"] as? String) { parts.append("\(l.dataQuality): \(gap)") }
         return parts.isEmpty ? raw : parts.joined(separator: "\n\n")
     }
 
@@ -493,26 +593,35 @@ final class AppViewModel {
         }
         let todaySpent = todayTxns.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
         let todayIncome = todayTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
-        let txnLines = todayTxns.map { tx in
-            let symbol = tx.type == .income ? "+" : "-"
-            let merchant = tx.merchant?.isEmpty == false ? " at \(tx.merchant!)" : ""
-            return "\(symbol)\(CurrencyFormat.format(tx.amount, currency: currency)) \(categoryLabel(tx.category, type: tx.type))\(merchant)"
-        }.joined(separator: "\n")
+        let txnLines = transactionEvidenceLines(
+            todayTxns.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) },
+            limit: 16
+        )
         let recentTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
-            return Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 999 <= 14
+            let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 999
+            return days >= 0 && days <= 14
         }.sorted { ($0.dateValue ?? .distantPast) > ($1.dateValue ?? .distantPast) }
+        let recentExpenses = recentTxns.filter { $0.type == .expense }
 
         let prompt = """
         You are a precise personal finance assistant. Use ONLY the data below. NEVER invent numbers.
 
         \(aiPersonalContext())
 
+        DAILY ANALYSIS WINDOW
+        Date: \(shortDate(Date()))
         Today's transactions:
-        \(txnLines.isEmpty ? "No transactions today." : txnLines)
+        \(txnLines == "none" ? "No transactions today." : txnLines)
 
         Recent 14-day transaction evidence:
         \(transactionEvidenceLines(recentTxns, limit: 12))
+
+        Recent 14-day top categories:
+        \(topCategoryLines(from: recentExpenses, limit: 5))
+
+        Recent 14-day top merchants:
+        \(topMerchantLines(from: recentExpenses, limit: 5))
 
         Totals:
         - Spent: \(CurrencyFormat.format(todaySpent, currency: currency))
@@ -521,12 +630,14 @@ final class AppViewModel {
 
         \(aiOutputRules(for: "daily analysis"))
         Return:
-        - title: A short headline tied to today's actual numbers.
-        - summary: 1-2 sentences comparing today's spend to the safe daily limit, using recent data if today has no transactions.
-        - top_category: the highest-spend category today with amount, or the most relevant recent category if today has no transactions.
-        - why: the exact evidence behind the insight.
-        - action: one specific action for the next 24 hours.
-        \(isPro ? "- unusual: Flag any transaction that is unusually large or out of pattern compared to normal spending, or say \\\"none\\\"." : "")
+        - title: A short, useful headline tied to today's actual numbers.
+        - summary: 1-2 sentences comparing today's spend to the safe daily limit. If today is empty, use the 14-day evidence and say today has no entries.
+        - top_category: highest-spend category today with amount, or the most relevant 14-day category if today is empty.
+        - evidence: 1 concise sentence naming the exact transaction/category/merchant/date behind the insight.
+        - action: one specific action for the next 24 hours with a target amount/category/merchant.
+        - confidence: High/Medium/Low plus the exact data reason.
+        - data_gap: "none" or one missing detail that would improve accuracy.
+        \(isPro ? "- unusual: Flag a genuinely unusual transaction compared to recent spending, with amount and reason, or say \\\"none\\\"." : "")
         """
 
         let props: [String: AnyCodable] = {
@@ -534,8 +645,10 @@ final class AppViewModel {
                 "title": .object(["type": "string"]),
                 "summary": .object(["type": "string"]),
                 "top_category": .object(["type": "string"]),
-                "why": .object(["type": "string"]),
+                "evidence": .object(["type": "string"]),
                 "action": .object(["type": "string"]),
+                "confidence": .object(["type": "string"]),
+                "data_gap": .object(["type": "string"]),
             ]
             if isPro { p["unusual"] = .object(["type": "string"]) }
             return p
@@ -543,8 +656,9 @@ final class AppViewModel {
 
         let schema: [String: AnyCodable] = [
             "type": "object",
+            "additionalProperties": .bool(false),
             "properties": .object(props),
-            "required": .array([.string("title"), .string("summary"), .string("top_category"), .string("why"), .string("action")]),
+            "required": .array([.string("title"), .string("summary"), .string("top_category"), .string("evidence"), .string("action"), .string("confidence"), .string("data_gap")]),
         ]
 
         let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
@@ -563,58 +677,65 @@ final class AppViewModel {
     func generateWeeklyAnalysis() async throws -> AIResult {
         let summary = spendSummary
         let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: Date())
+        let currentWindowStart = cal.date(byAdding: .day, value: -6, to: todayStart) ?? todayStart
+        let previousWindowStart = cal.date(byAdding: .day, value: -7, to: currentWindowStart) ?? currentWindowStart
         let thisWeekTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
-            return cal.dateComponents([.day], from: date, to: Date()).day ?? 999 <= 7
+            return date >= currentWindowStart && date <= Date()
         }
-        let lastWeekStart = cal.date(byAdding: .day, value: -14, to: Date())!
-        let lastWeekEnd = cal.date(byAdding: .day, value: -7, to: Date())!
         let lastWeekTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
-            return date >= lastWeekStart && date < lastWeekEnd
+            return date >= previousWindowStart && date < currentWindowStart
         }
 
         let thisWeekSpent = thisWeekTxns.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
         let lastWeekSpent = lastWeekTxns.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
 
-        let thisWeekByCat = Dictionary(grouping: thisWeekTxns.filter { $0.type == .expense }, by: { $0.category ?? "other" })
-            .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-        let lastWeekByCat = Dictionary(grouping: lastWeekTxns.filter { $0.type == .expense }, by: { $0.category ?? "other" })
-            .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-
-        let catLines = thisWeekByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
-        let lastCatLines = lastWeekByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
+        let thisWeekExpenses = thisWeekTxns.filter { $0.type == .expense }
+        let lastWeekExpenses = lastWeekTxns.filter { $0.type == .expense }
+        let catLines = topCategoryLines(from: thisWeekExpenses, limit: 8)
+        let lastCatLines = topCategoryLines(from: lastWeekExpenses, limit: 8)
+        let categoryChanges = categoryComparisonLines(current: thisWeekExpenses, previous: lastWeekExpenses, limit: 6)
         let thisWeekEvidence = transactionEvidenceLines(
-            thisWeekTxns.sorted { $0.amount > $1.amount },
+            thisWeekExpenses.sorted { $0.amount > $1.amount },
             limit: 8
         )
         let lastWeekEvidence = transactionEvidenceLines(
-            lastWeekTxns.sorted { $0.amount > $1.amount },
+            lastWeekExpenses.sorted { $0.amount > $1.amount },
             limit: 6
         )
+        let currentWindowLabel = "\(shortDate(currentWindowStart)) to \(shortDate(Date()))"
+        let previousWindowLabel = "\(shortDate(previousWindowStart)) to \(shortDate(cal.date(byAdding: .day, value: -1, to: currentWindowStart) ?? currentWindowStart))"
 
         let prompt = """
         You are a precise personal finance analyst. Use ONLY the data below. NEVER invent numbers.
 
         \(aiPersonalContext())
 
-        This week's spending by category: \(catLines.isEmpty ? "none" : catLines)
-        Last week's spending by category: \(lastCatLines.isEmpty ? "none" : lastCatLines)
-        This week total spent: \(CurrencyFormat.format(thisWeekSpent, currency: currency))
-        Last week total spent: \(CurrencyFormat.format(lastWeekSpent, currency: currency))
+        WEEKLY ANALYSIS WINDOWS
+        Current 7-day window: \(currentWindowLabel)
+        Previous 7-day window: \(previousWindowLabel)
+        Current 7-day spending by category: \(catLines)
+        Previous 7-day spending by category: \(lastCatLines)
+        Category changes: \(categoryChanges)
+        Current 7-day total spent: \(CurrencyFormat.format(thisWeekSpent, currency: currency))
+        Previous 7-day total spent: \(CurrencyFormat.format(lastWeekSpent, currency: currency))
         Daily safe spend: \(CurrencyFormat.format(summary.safeDaily, currency: currency))
         Days remaining this month: \(summary.daysLeft)
-        This week largest transactions: \(thisWeekEvidence)
-        Last week largest transactions: \(lastWeekEvidence)
+        Current 7-day largest transactions: \(thisWeekEvidence)
+        Previous 7-day largest transactions: \(lastWeekEvidence)
 
         \(aiOutputRules(for: "weekly analysis"))
         Return:
-        - summary: 2 sentences comparing this week to last week with exact totals and the largest driver.
-        - top_category: the highest-spend category this week with amount and reason.
-        - vs_last_week: a precise comparison like "This week (+15% vs last week)" or "This week (-8% vs last week)" based on totals.
-        - biggest_driver: the merchant, category, or transaction that best explains the change.
-        - action: one specific action for next week.
+        - summary: 2 concise sentences comparing the two exact 7-day windows with totals and the biggest driver.
+        - top_category: highest-spend category in the current window with amount and reason.
+        - vs_last_week: precise total comparison with percentage if previous spend is above zero.
+        - biggest_driver: merchant, category, or transaction that best explains the change.
+        - action: one specific action for the next 7 days with a target amount/category/merchant.
         - watch_item: one recurring category or merchant to monitor.
+        - confidence: High/Medium/Low plus the exact data reason.
+        - data_gap: "none" or one missing detail that would improve accuracy.
         \(isPro ? "- tip: One specific, actionable spending tip for next week." : "")
         """
 
@@ -626,6 +747,8 @@ final class AppViewModel {
                 "biggest_driver": .object(["type": "string"]),
                 "action": .object(["type": "string"]),
                 "watch_item": .object(["type": "string"]),
+                "confidence": .object(["type": "string"]),
+                "data_gap": .object(["type": "string"]),
             ]
             if isPro {
                 p["tip"] = .object(["type": "string"])
@@ -635,8 +758,9 @@ final class AppViewModel {
 
         let schema: [String: AnyCodable] = [
             "type": "object",
+            "additionalProperties": .bool(false),
             "properties": .object(props),
-            "required": .array([.string("summary"), .string("top_category"), .string("vs_last_week"), .string("biggest_driver"), .string("action")]),
+            "required": .array([.string("summary"), .string("top_category"), .string("vs_last_week"), .string("biggest_driver"), .string("action"), .string("watch_item"), .string("confidence"), .string("data_gap")]),
         ]
 
         let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
@@ -657,11 +781,12 @@ final class AppViewModel {
         let budget = currentBudget
         let s = spendSummary
         let cal = Calendar.current
+        let analysisDate = Date()
         let monthTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
-            return cal.isDate(date, equalTo: Date(), toGranularity: .month)
+            return cal.isDate(date, equalTo: analysisDate, toGranularity: .month)
         }
-        let lastMonth = cal.date(byAdding: .month, value: -1, to: Date())!
+        let lastMonth = cal.date(byAdding: .month, value: -1, to: analysisDate)!
         let lastMonthTxns = transactions.filter { tx in
             guard let date = tx.dateValue else { return false }
             return cal.isDate(date, equalTo: lastMonth, toGranularity: .month)
@@ -671,34 +796,46 @@ final class AppViewModel {
         let monthIncome = monthTxns.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         let lastMonthSpent = lastMonthTxns.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
 
-        let thisByCat = Dictionary(grouping: monthTxns.filter { $0.type == .expense }, by: { $0.category ?? "other" })
-            .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-        let lastByCat = Dictionary(grouping: lastMonthTxns.filter { $0.type == .expense }, by: { $0.category ?? "other" })
-            .mapValues { txns in txns.reduce(0) { $0 + $1.amount } }
-
-        let catLines = thisByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
-        let lastCatLines = lastByCat.map { "\($0.key): \(CurrencyFormat.format($0.value, currency: currency))" }.joined(separator: ", ")
+        let monthExpenses = monthTxns.filter { $0.type == .expense }
+        let lastMonthExpenses = lastMonthTxns.filter { $0.type == .expense }
+        let catLines = topCategoryLines(from: monthExpenses, limit: 8)
+        let lastCatLines = topCategoryLines(from: lastMonthExpenses, limit: 8)
+        let categoryChanges = categoryComparisonLines(current: monthExpenses, previous: lastMonthExpenses, limit: 8)
 
         let disposable = (budget?.monthlyIncome ?? 0) - (budget?.monthlyEssentials ?? 0) - (budget?.monthlySavingsGoal ?? 0)
-        let budgetPct = disposable > 0 ? Int(min(100, (monthSpent / disposable) * 100)) : 0
+        let budgetPct = disposable > 0 ? Int((monthSpent / disposable * 100).rounded()) : 0
+        let projectedSpend = projectedMonthSpend(currentSpent: monthSpent, summary: s)
         let monthlyEvidence = transactionEvidenceLines(
-            monthTxns.filter { $0.type == .expense }.sorted { $0.amount > $1.amount },
+            monthExpenses.sorted { $0.amount > $1.amount },
             limit: 10
         )
-        let merchantEvidence = topMerchantLines(from: monthTxns.filter { $0.type == .expense }, limit: 6)
+        let merchantEvidence = topMerchantLines(from: monthExpenses, limit: 6)
+        let monthLabel = {
+            let df = DateFormatter(); df.dateFormat = "yyyy-MM"
+            return df.string(from: analysisDate)
+        }()
+        let lastMonthLabel = {
+            let df = DateFormatter(); df.dateFormat = "yyyy-MM"
+            return df.string(from: lastMonth)
+        }()
 
         let prompt = """
         You are a precise personal finance analyst. Use ONLY the data below. NEVER invent numbers.
 
         \(aiPersonalContext())
 
+        MONTHLY ANALYSIS WINDOWS
+        Current month: \(monthLabel)
+        Previous month: \(lastMonthLabel)
         This month's spending by category: \(catLines.isEmpty ? "none" : catLines)
         Last month's spending by category: \(lastCatLines.isEmpty ? "none" : lastCatLines)
+        Category changes: \(categoryChanges)
         This month spent: \(CurrencyFormat.format(monthSpent, currency: currency))
         This month income: \(CurrencyFormat.format(monthIncome, currency: currency))
         Last month spent: \(CurrencyFormat.format(lastMonthSpent, currency: currency))
         Monthly budget (disposable): \(CurrencyFormat.format(disposable, currency: currency))
         Budget used: \(budgetPct)%
+        Projected month-end spend at current pace: \(CurrencyFormat.format(projectedSpend, currency: currency))
         Days remaining: \(s.daysLeft)
         Top merchants this month: \(merchantEvidence)
         Largest transactions this month: \(monthlyEvidence)
@@ -706,16 +843,19 @@ final class AppViewModel {
         \(aiOutputRules(for: "monthly analysis"))
         Return:
         - headline: a short summary of budget adherence tied to the user's actual budget percentage.
-        - summary: 2-3 sentences analyzing overall spending vs budget, category changes, and likely month-end outcome.
+        - summary: 2 concise sentences analyzing spending vs budget, category changes, and likely month-end outcome.
         - budget_adherence: A comparison like "\(budgetPct)% of budget used with \(s.daysLeft) days left".
         - biggest_change: Which category changed the most from last month and by how much.
         - next_step: one actionable recommendation for the remaining days with a realistic target amount.
         - drivers: the specific merchants, categories, or transactions driving the result.
         - watch_item: one category or merchant to monitor.
+        - confidence: High/Medium/Low plus the exact data reason.
+        - data_gap: "none" or one missing detail that would improve accuracy.
         """
 
         let schema: [String: AnyCodable] = [
             "type": "object",
+            "additionalProperties": .bool(false),
             "properties": .object([
                 "headline": .object(["type": "string"]),
                 "summary": .object(["type": "string"]),
@@ -724,8 +864,10 @@ final class AppViewModel {
                 "next_step": .object(["type": "string"]),
                 "drivers": .object(["type": "string"]),
                 "watch_item": .object(["type": "string"]),
+                "confidence": .object(["type": "string"]),
+                "data_gap": .object(["type": "string"]),
             ]),
-            "required": .array([.string("headline"), .string("summary"), .string("budget_adherence"), .string("biggest_change"), .string("next_step")]),
+            "required": .array([.string("headline"), .string("summary"), .string("budget_adherence"), .string("biggest_change"), .string("next_step"), .string("drivers"), .string("watch_item"), .string("confidence"), .string("data_gap")]),
         ]
 
         let raw = try await aiClient.invokeLLM(prompt: prompt, responseJSONSchema: schema)
@@ -753,8 +895,10 @@ final class AppViewModel {
             if let title = json["title"] as? String { parts.append(title) }
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let top = json["top_category"] as? String { parts.append("\(l.topCategory): \(top)") }
-            if let why = json["why"] as? String { parts.append("\(l.pattern): \(why)") }
+            if let evidence = (json["evidence"] as? String) ?? (json["why"] as? String) { parts.append("\(l.evidence): \(evidence)") }
             if let action = json["action"] as? String { parts.append("\(l.nextStep): \(action)") }
+            if let confidence = json["confidence"] as? String { parts.append("\(l.confidence): \(confidence)") }
+            if let gap = usefulOptionalText(json["data_gap"] as? String) { parts.append("\(l.dataQuality): \(gap)") }
             if let unusual = json["unusual"] as? String, unusual.lowercased() != "none" {
                 parts.append(unusual)
             }
@@ -762,22 +906,35 @@ final class AppViewModel {
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let top = json["top_category"] as? String { parts.append("\(l.topCategory): \(top)") }
             if let vs = json["vs_last_week"] as? String { parts.append(vs) }
-            if let driver = json["biggest_driver"] as? String { parts.append("\(l.pattern): \(driver)") }
-            if let watch = json["watch_item"] as? String { parts.append("\(l.suggestion): \(watch)") }
+            if let driver = json["biggest_driver"] as? String { parts.append("\(l.evidence): \(driver)") }
+            if let watch = json["watch_item"] as? String { parts.append("\(l.watchItem): \(watch)") }
             if let action = json["action"] as? String { parts.append("\(l.nextStep): \(action)") }
+            if let confidence = json["confidence"] as? String { parts.append("\(l.confidence): \(confidence)") }
+            if let gap = usefulOptionalText(json["data_gap"] as? String) { parts.append("\(l.dataQuality): \(gap)") }
             if let tip = json["tip"] as? String { parts.append("\(l.suggestion): \(tip)") }
         case "monthly":
             if let h = json["headline"] as? String { parts.append(h) }
             if let summary = json["summary"] as? String { parts.append(summary) }
             if let adh = json["budget_adherence"] as? String { parts.append(adh) }
             if let chg = json["biggest_change"] as? String { parts.append(chg) }
-            if let drivers = json["drivers"] as? String { parts.append("\(l.pattern): \(drivers)") }
-            if let watch = json["watch_item"] as? String { parts.append("\(l.suggestion): \(watch)") }
+            if let drivers = json["drivers"] as? String { parts.append("\(l.evidence): \(drivers)") }
+            if let watch = json["watch_item"] as? String { parts.append("\(l.watchItem): \(watch)") }
             if let next = json["next_step"] as? String { parts.append("\(l.nextStep): \(next)") }
+            if let confidence = json["confidence"] as? String { parts.append("\(l.confidence): \(confidence)") }
+            if let gap = usefulOptionalText(json["data_gap"] as? String) { parts.append("\(l.dataQuality): \(gap)") }
         default:
             return raw
         }
         return parts.isEmpty ? raw : parts.joined(separator: "\n\n")
+    }
+
+    private func usefulOptionalText(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              trimmed.lowercased() != "none" else {
+            return nil
+        }
+        return trimmed
     }
 
     private func parseChartData(from raw: String) -> ([(String, Double)], [(String, Double)]) {
@@ -928,18 +1085,22 @@ final class AppViewModel {
 
     private var l: AILabels {
         switch language {
-        case "ja": return .init(topCategory: "トップカテゴリ", pattern: "パターン", suggestion: "アドバイス",
-                                 totalSpent: "支出合計", totalIncome: "収入合計", budgetUsed: "予算使用率", nextStep: "次のステップ")
-        case "zh": return .init(topCategory: "主要类别", pattern: "消费模式", suggestion: "建议",
-                                 totalSpent: "总支出", totalIncome: "总收入", budgetUsed: "预算使用率", nextStep: "下一步")
-        default:  return .init(topCategory: "Top category", pattern: "Pattern", suggestion: "Suggestion",
-                                 totalSpent: "Total spent", totalIncome: "Total income", budgetUsed: "Budget used", nextStep: "Next step")
+            case "ja": return .init(topCategory: "トップカテゴリ", pattern: "パターン", suggestion: "アドバイス",
+                                 totalSpent: "支出合計", totalIncome: "収入合計", budgetUsed: "予算使用率", nextStep: "次のステップ",
+                                 evidence: "根拠", confidence: "信頼度", dataQuality: "データの不足", watchItem: "注目ポイント")
+            case "zh": return .init(topCategory: "主要类别", pattern: "消费模式", suggestion: "建议",
+                                 totalSpent: "总支出", totalIncome: "总收入", budgetUsed: "预算使用率", nextStep: "下一步",
+                                 evidence: "依据", confidence: "可信度", dataQuality: "数据缺口", watchItem: "关注项")
+            default:  return .init(topCategory: "Top category", pattern: "Pattern", suggestion: "Suggestion",
+                                 totalSpent: "Total spent", totalIncome: "Total income", budgetUsed: "Budget used", nextStep: "Next step",
+                                 evidence: "Evidence", confidence: "Confidence", dataQuality: "Data gap", watchItem: "Watch item")
         }
     }
 
     private struct AILabels {
         let topCategory, pattern, suggestion: String
         let totalSpent, totalIncome, budgetUsed, nextStep: String
+        let evidence, confidence, dataQuality, watchItem: String
     }
 
     private var promptLanguage: String {
