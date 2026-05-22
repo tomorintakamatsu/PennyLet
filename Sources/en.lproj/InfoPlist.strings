@@ -1,4 +1,2 @@
 CFBundleDisplayName = "ClearSpend";
 NSCameraUsageDescription = "ClearSpend uses your camera to scan receipts.";
-NSMicrophoneUsageDescription = "ClearSpend uses your microphone for voice input.";
-NSSpeechRecognitionUsageDescription = "ClearSpend uses speech recognition to transcribe your voice input.";

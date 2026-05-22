@@ -17,8 +17,6 @@ settings:
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
     INFOPLIST_KEY_NSCameraUsageDescription: "ClearSpend uses your camera to scan receipts"
-    INFOPLIST_KEY_NSMicrophoneUsageDescription: "ClearSpend uses your microphone for voice input"
-    INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "ClearSpend uses speech recognition to transcribe your voice input"
     INFOPLIST_KEY_CFBundleURLTypes:
       - CFBundleURLSchemes:
         - clearspend

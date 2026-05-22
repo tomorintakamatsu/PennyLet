@@ -1251,9 +1251,9 @@ final class AppViewModel {
     }
     var upgradeDescription: String {
         switch language {
-        case "ja": return "ClearSpend Proにアップグレードして、カスタムカテゴリ、支出予測、ビジュアルチャート、無制限のレシートスキャンを解除しましょう。"
-        case "zh": return "升级到ClearSpend Pro以解锁自定义类别、支出预测、可视化图表和无限收据扫描。"
-        default: return "Upgrade to ClearSpend Pro to unlock custom categories, spending forecasts, visual charts, and unlimited receipt scanning."
+        case "ja": return "ClearSpend Proでカスタムカテゴリ、支出予測、ビジュアルチャート、より深いAIインサイトを利用できます。"
+        case "zh": return "升级到 ClearSpend Pro，解锁自定义类别、支出预测、可视化图表和更深入的 AI 洞察。"
+        default: return "Upgrade to ClearSpend Pro to unlock custom categories, spending forecasts, visual charts, and deeper AI insights."
         }
     }
     var subscribeLabel: String {
@@ -1322,9 +1322,6 @@ final class AppViewModel {
     }
     var scanReceiptLabel: String {
         switch language { case "ja": return "レシートをスキャン"; case "zh": return "扫描收据"; default: return "Scan Receipt" }
-    }
-    var voiceInputLabel: String {
-        switch language { case "ja": return "音声入力"; case "zh": return "语音输入"; default: return "Voice Input" }
     }
     var usageExhaustedFreeTitle: String {
         switch language { case "ja": return "利用制限に達しました"; case "zh": return "使用次数已用完"; default: return "Usage Limit Reached" }
@@ -1494,7 +1491,6 @@ final class AppViewModel {
         "ClearSpend Pro": "ClearSpend Pro",
         "Free": "無料",
         "Pro": "Pro",
-        "Get AI-powered insights, receipt scanning, voice input, and more.": "AI分析、レシートスキャン、音声入力をご利用いただけます。",
         "Plan": "プラン",
         "Yearly (save 40%)": "年間（40%割引）",
         "Processing...": "処理中...",
@@ -1522,11 +1518,9 @@ final class AppViewModel {
         "Add": "追加",
         "/mo": "/月",
         "Upgrade": "アップグレード",
-        "Get more AI analyses, visual charts, unlimited receipt scanning, and deeper spending insights.": "より多くのAI分析、ビジュアルチャート、無制限のレシートスキャン、より深い支出インサイトを。",
+        "Get more AI analyses, visual charts, forecasts, and deeper spending insights.": "より多くのAI分析、ビジュアルチャート、予測、より深い支出インサイトを。",
         "Visual Pie Charts": "ビジュアル円グラフ",
         "Beautiful spending breakdown charts in weekly and monthly reports": "週次・月次レポートの美しい支出内訳グラフ",
-        "Unlimited Receipt Scanning": "無制限のレシートスキャン",
-        "Scan as many receipts as you want, no monthly cap": "レシートを何枚でもスキャン、月間制限なし",
         "Deeper Spending Insights": "より深い支出インサイト",
         "Detailed patterns, trends, and personalized recommendations": "詳細なパターン、トレンド、パーソナライズされた提案",
         "Just $3.33/month": "月々たった$3.33",
@@ -1534,8 +1528,6 @@ final class AppViewModel {
         "Daily, weekly, and monthly analysis": "日次・週次・月次の分析",
         "Receipt Scanner": "レシートスキャン",
         "Snap receipts to log expenses instantly": "レシートを撮影して即座に記録",
-        "Voice Input": "音声入力",
-        "Log transactions by speaking": "話しかけるだけで取引を記録",
         "Custom Tags": "カスタムタグ",
         "Organize transactions your way": "取引を自由に整理",
         "Budget Alerts": "予算アラート",
@@ -1552,7 +1544,6 @@ final class AppViewModel {
         "Use": "使用",
         "Take a photo of your receipt": "レシートを撮影してください",
         "We'll extract the merchant, amount, and category automatically.": "店名、金額、カテゴリを自動的に抽出します。",
-        " free scans remaining this month": "今月の無料スキャン残り",
         "Choose Photo": "写真を選択",
         "Extracted Details": "抽出された情報",
         "Merchant": "店名",
@@ -1561,15 +1552,6 @@ final class AppViewModel {
         "Uploading receipt...": "レシートをアップロード中...",
         "Extracting details...": "詳細を抽出中...",
         "Could not parse receipt. Try again.": "レシートを解析できませんでした。再試行してください。",
-
-        // Voice Input
-        "Analyze": "分析",
-        "Microphone access required": "マイクのアクセス許可が必要です",
-        "Enable in Settings > Privacy > Microphone": "設定 > プライバシー > マイク で許可してください",
-        "Listening...": "聞いています...",
-        "Tap to speak": "タップして話す",
-        "Speech recognition unavailable.": "音声認識が利用できません。",
-        "Audio engine failed to start.": "オーディオエンジンの起動に失敗しました。",
 
         // Charts / AI
         "Category Breakdown": "カテゴリ別内訳",
@@ -1778,7 +1760,6 @@ final class AppViewModel {
         "ClearSpend Pro": "ClearSpend Pro",
         "Free": "免费",
         "Pro": "Pro",
-        "Get AI-powered insights, receipt scanning, voice input, and more.": "获取AI驱动的洞察、收据扫描、语音输入等功能。",
         "Plan": "计划",
         "Yearly (save 40%)": "年度（节省40%）",
         "Processing...": "处理中...",
@@ -1806,11 +1787,9 @@ final class AppViewModel {
         "Add": "添加",
         "/mo": "/月",
         "Upgrade": "升级",
-        "Get more AI analyses, visual charts, unlimited receipt scanning, and deeper spending insights.": "获取更多AI分析、可视化图表、无限收据扫描和更深入的消费洞察。",
+        "Get more AI analyses, visual charts, forecasts, and deeper spending insights.": "获取更多 AI 分析、可视化图表、预测和更深入的消费洞察。",
         "Visual Pie Charts": "可视化饼图",
         "Beautiful spending breakdown charts in weekly and monthly reports": "每周和每月报告中精美的消费分类图表",
-        "Unlimited Receipt Scanning": "无限收据扫描",
-        "Scan as many receipts as you want, no monthly cap": "随心扫描收据，无月度上限",
         "Deeper Spending Insights": "更深入的消费洞察",
         "Detailed patterns, trends, and personalized recommendations": "详细的消费模式、趋势和个性化建议",
         "Just $3.33/month": "每月仅$3.33",
@@ -1818,8 +1797,6 @@ final class AppViewModel {
         "Daily, weekly, and monthly analysis": "每日、每周、每月分析",
         "Receipt Scanner": "收据扫描器",
         "Snap receipts to log expenses instantly": "拍照即可即时记录消费",
-        "Voice Input": "语音输入",
-        "Log transactions by speaking": "用语音记录交易",
         "Custom Tags": "自定义标签",
         "Organize transactions your way": "按您的方式整理交易",
         "Budget Alerts": "预算提醒",
@@ -1836,7 +1813,6 @@ final class AppViewModel {
         "Use": "使用",
         "Take a photo of your receipt": "拍摄收据照片",
         "We'll extract the merchant, amount, and category automatically.": "我们将自动提取商家、金额和类别。",
-        " free scans remaining this month": "本月剩余免费扫描次数",
         "Choose Photo": "选择照片",
         "Extracted Details": "提取详情",
         "Merchant": "商家",
@@ -1845,15 +1821,6 @@ final class AppViewModel {
         "Uploading receipt...": "正在上传收据...",
         "Extracting details...": "正在提取详情...",
         "Could not parse receipt. Try again.": "无法解析收据，请重试。",
-
-        // Voice Input
-        "Analyze": "分析",
-        "Microphone access required": "需要麦克风权限",
-        "Enable in Settings > Privacy > Microphone": "请在 设置 > 隐私 > 麦克风 中启用",
-        "Listening...": "正在聆听...",
-        "Tap to speak": "点击说话",
-        "Speech recognition unavailable.": "语音识别不可用。",
-        "Audio engine failed to start.": "音频引擎启动失败。",
 
         // Charts / AI
         "Category Breakdown": "类别分布",

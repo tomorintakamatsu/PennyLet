@@ -28,20 +28,13 @@ struct ReceiptScannerView: View {
         var editPrice: String
     }
     @State private var showDocumentScanner = false
-    @State private var navigateToUpgrade = false
 
     var onResult: ((amount: Double?, category: String?, merchant: String?)) -> Void = { _ in }
-
-    private var canUseScanner: Bool {
-        viewModel.canUseFeature("receipt")
-    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                if !canUseScanner {
-                    upgradePrompt
-                } else if let image = capturedImage {
+                if let image = capturedImage {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFit()
@@ -126,16 +119,6 @@ struct ReceiptScannerView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 32)
 
-            let remaining = viewModel.remainingUses("receipt")
-            if !viewModel.isPro {
-                Text("\(remaining)" + viewModel.loc(" free scans remaining this month"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-            }
-
             VStack(spacing: 12) {
                 Button {
                     showDocumentScanner = true
@@ -159,35 +142,6 @@ struct ReceiptScannerView: View {
             }
         }
         .frame(maxHeight: .infinity)
-    }
-
-    private var upgradePrompt: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.yellow)
-            Text(viewModel.isPro ? viewModel.usageExhaustedProTitle : viewModel.usageExhaustedFreeTitle)
-                .font(.title3.weight(.semibold))
-            Text(viewModel.isPro ? viewModel.usageExhaustedProMessage : viewModel.usageExhaustedFreeMessage)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-            if !viewModel.isPro {
-                Button {
-                    navigateToUpgrade = true
-                } label: {
-                    Text(viewModel.upgradeToProLabel)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(.yellow, in: RoundedRectangle(cornerRadius: 12))
-                }
-            }
-        }
-        .frame(maxHeight: .infinity)
-        .sheet(isPresented: $navigateToUpgrade) {
-            UpgradeView()
-        }
     }
 
     private var lineItemTotal: Double {
@@ -417,7 +371,7 @@ struct ReceiptScannerView: View {
             let result = try await AIClient.shared.invokeLLM(
                 prompt: prompt,
                 responseJSONSchema: schema,
-                modelTier: viewModel.isPro ? .pro : .standard
+                modelTier: .standard
             )
             guard let jsonData = result.data(using: .utf8),
                   let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {

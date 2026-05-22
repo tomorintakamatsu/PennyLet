@@ -4,7 +4,7 @@ import Foundation
 @Observable
 final class ProStatusService {
     // Feature limits: free vs pro
-    private let freeLimits: [String: Int] = ["daily": 5, "recap": 1, "insight": 0, "receipt": 5, "forecast": 0]
+    private let freeLimits: [String: Int] = ["daily": 5, "recap": 1, "insight": 0, "receipt": Int.max, "forecast": 0]
     private let proLimits: [String: Int] = ["daily": 30, "recap": 15, "insight": 10, "receipt": Int.max, "forecast": 3]
 
     func canUse(feature: String, isPro: Bool, usage: MonthlyUsage?) -> Bool {

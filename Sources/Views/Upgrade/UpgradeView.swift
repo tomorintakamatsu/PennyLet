@@ -26,7 +26,7 @@ struct UpgradeView: View {
                             .font(.system(size: 40)).foregroundStyle(.yellow)
                         Text(viewModel.loc("ClearSpend Pro"))
                             .font(.title.weight(.bold))
-                        Text(viewModel.loc("Get more AI analyses, visual charts, unlimited receipt scanning, and deeper spending insights."))
+                        Text(viewModel.loc("Get more AI analyses, visual charts, forecasts, and deeper spending insights."))
                             .multilineTextAlignment(.center).foregroundStyle(.secondary)
                             .padding(.horizontal, 28)
                     }.padding(.top, 16)
@@ -171,7 +171,6 @@ struct UpgradeView: View {
             ("chart.line.uptrend.xyaxis", viewModel.loc("Spending Forecasts"), viewModel.loc("AI predicts next month's spending based on your history")),
             ("clock.arrow.2.circlepath", viewModel.autoAnalysisLabel, viewModel.loc("Schedule automatic daily, weekly, and monthly AI analysis")),
             ("chart.pie.fill", viewModel.loc("Visual Pie Charts"), viewModel.loc("Beautiful spending breakdown charts in weekly and monthly reports")),
-            ("camera.viewfinder", viewModel.loc("Unlimited Receipt Scanning"), viewModel.loc("Scan as many receipts as you want, no monthly cap")),
             ("bell.fill", viewModel.loc("Deeper Spending Insights"), viewModel.loc("Detailed patterns, trends, and personalized recommendations")),
         ]
     }
@@ -190,7 +189,7 @@ struct UpgradeView: View {
             comparisonRow(icon: "chart.bar.fill", label: viewModel.weeklyRecapTitle, free: "1\(viewModel.loc("/mo"))", pro: "15\(viewModel.loc("/mo"))")
             comparisonRow(icon: "doc.text.magnifyingglass", label: viewModel.monthlyInsightTitle, free: "—", pro: "10\(viewModel.loc("/mo"))")
             comparisonRow(icon: "chart.line.uptrend.xyaxis", label: viewModel.loc("Spending Forecasts"), free: "—", pro: "3\(viewModel.loc("/mo"))")
-            comparisonRow(icon: "camera.viewfinder", label: viewModel.scanReceiptLabel, free: "5\(viewModel.loc("/mo"))", pro: "∞")
+            comparisonRow(icon: "camera.viewfinder", label: viewModel.scanReceiptLabel, free: "✓", pro: "✓")
             comparisonRow(icon: "creditcard.fill", label: viewModel.loc("Subscription Tracker"), free: "✓", pro: "✓")
             comparisonRow(icon: "clock.arrow.2.circlepath", label: viewModel.autoAnalysisLabel, free: "—", pro: "✓")
             comparisonRow(icon: "tag.fill", label: viewModel.loc("Custom Categories"), free: "—", pro: "✓")

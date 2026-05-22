@@ -44,7 +44,6 @@
 		A526891A45CD3EA5465EB782 /* AIFeaturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380223E91F1A3A1DCF733CCF /* AIFeaturesView.swift */; };
 		A7EA1A033F249CEB439C5FF3 /* SubscriptionDetectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8374184BADCED82878E8C7DA /* SubscriptionDetectionService.swift */; };
 		BF53BE586D2B52AAA6840938 /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = D420E6E3F8A97BEDB13F90B9 /* Transaction.swift */; };
-		BFBE94AEC60631AEE5BFE8F9 /* VoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2067B64093DE40149730FD /* VoiceInputView.swift */; };
 		CE9D947B37C1A8404D7E918F /* SubscriptionTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55C4AC3EFBB280AE4D7AA01C /* SubscriptionTrackerView.swift */; };
 		D554CDEDE226C11E2512EB80 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1589810548E355BD8EB4D5 /* Constants.swift */; };
 		DC534624F9234E1F68502381 /* SpendSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CAC5FA824E8F1E49CEFA3A /* SpendSummary.swift */; };
@@ -105,7 +104,6 @@
 		D8CAC5FA824E8F1E49CEFA3A /* SpendSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpendSummary.swift; sourceTree = "<group>"; };
 		E3ABF15C5896092F4D6FAF9F /* ProStatusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProStatusService.swift; sourceTree = "<group>"; };
 		ED1BD4C45FDBA9D5BB228E91 /* GuestUpgradeModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuestUpgradeModal.swift; sourceTree = "<group>"; };
-		ED2067B64093DE40149730FD /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
 		EE72A78509591233B5656E8F /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
 		F5CF0F9646F942C4CC6A0117 /* RevenueCatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevenueCatService.swift; sourceTree = "<group>"; };
 		F62EF62C82FA2E73973F2FCF /* BudgetHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetHealthView.swift; sourceTree = "<group>"; };
@@ -320,7 +318,6 @@
 			children = (
 				0AD7400F84F21E370C5ADA9C /* AddTransactionView.swift */,
 				44495D9C0C6A41306CA3C4A0 /* ReceiptScannerView.swift */,
-				ED2067B64093DE40149730FD /* VoiceInputView.swift */,
 			);
 			path = AddTransaction;
 			sourceTree = "<group>";
@@ -481,7 +478,6 @@
 				08F18C4286F870D768E688E2 /* User.swift in Sources */,
 				E3A0E3FC72A767486B27029D /* View+Extensions.swift in Sources */,
 				130C228EAD538E57FDD2987F /* View+Keyboard.swift in Sources */,
-				BFBE94AEC60631AEE5BFE8F9 /* VoiceInputView.swift in Sources */,
 				EDADC4024D5032BFF227C404 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -560,8 +556,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"clearspend\"]]]";
 				INFOPLIST_KEY_NSCameraUsageDescription = "ClearSpend uses your camera to scan receipts";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "ClearSpend uses your microphone for voice input";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "ClearSpend uses speech recognition to transcribe your voice input";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -638,8 +632,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleURLTypes = "[[\"CFBundleURLSchemes\": [\"clearspend\"]]]";
 				INFOPLIST_KEY_NSCameraUsageDescription = "ClearSpend uses your camera to scan receipts";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "ClearSpend uses your microphone for voice input";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "ClearSpend uses speech recognition to transcribe your voice input";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
