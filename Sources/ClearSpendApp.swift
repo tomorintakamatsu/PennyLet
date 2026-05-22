@@ -40,6 +40,7 @@ struct ClearSpendApp: App {
             .tint(viewModel.theme.primaryColor)
             .preferredColorScheme(viewModel.colorMode.colorScheme)
             .fontDesign(viewModel.font.design)
+            .environment(\.locale, viewModel.appLocale)
         }
     }
 }

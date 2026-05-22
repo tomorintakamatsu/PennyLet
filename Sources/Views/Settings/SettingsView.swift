@@ -24,9 +24,7 @@ struct SettingsView: View {
     @State private var budgetSaveTimer: Task<Void, Never>?
 
     private let currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "SGD", "KRW", "BRL"]
-    private let languages: [(String, String)] = [
-        ("en", "English"), ("ja", "日本語"), ("zh", "中文"),
-    ]
+    private let languages = ["en", "ja", "zh"]
 
     private var timeOptions: [String] {
         stride(from: 0, to: 24, by: 1).flatMap { h in
@@ -217,8 +215,8 @@ struct SettingsView: View {
                 get: { viewModel.language },
                 set: { viewModel.language = $0; savePreferences() }
             )) {
-                ForEach(languages, id: \.0) { code, name in
-                    Text(name).tag(code)
+                ForEach(languages, id: \.self) { code in
+                    Text(viewModel.languageDisplayName(for: code)).tag(code)
                 }
             }
         }

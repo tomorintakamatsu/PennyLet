@@ -40,19 +40,13 @@ struct ContentView: View {
                 .tag(3)
 
                 NavigationStack {
-                    SubscriptionTrackerView()
+                    MoreView()
                         .toolbar { settingsButton }
                 }
-                .tabItem { Label(viewModel.loc("Subscriptions"), systemImage: "creditcard.fill") }
+                .tabItem { Label(viewModel.moreTab, systemImage: "ellipsis.circle.fill") }
                 .tag(4)
-
-                NavigationStack {
-                    BudgetHealthView()
-                        .toolbar { settingsButton }
-                }
-                .tabItem { Label(viewModel.healthTab, systemImage: "heart.fill") }
-                .tag(5)
             }
+            .id(viewModel.language)
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selectedTab)
 
             Button {
@@ -98,7 +92,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: viewModel.navigateToTab) { _, new in
-            if let tab = new { selectedTab = tab }
+            if let tab = new { selectedTab = min(tab, 4) }
         }
         .onChange(of: viewModel.isPro) { _, _ in }
     }
@@ -121,5 +115,26 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+private struct MoreView: View {
+    @Environment(AppViewModel.self) private var viewModel
+
+    var body: some View {
+        List {
+            NavigationLink {
+                SubscriptionTrackerView()
+            } label: {
+                Label(viewModel.loc("Subscriptions"), systemImage: "creditcard.fill")
+            }
+
+            NavigationLink {
+                BudgetHealthView()
+            } label: {
+                Label(viewModel.loc("Budget Health"), systemImage: "heart.fill")
+            }
+        }
+        .navigationTitle(viewModel.moreTab)
     }
 }

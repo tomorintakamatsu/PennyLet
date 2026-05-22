@@ -17,9 +17,7 @@ struct WelcomeView: View {
     @State private var showCSVImport = false
     @State private var csvImportResult: (success: Bool, count: Int)?
     private let currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "SGD", "KRW", "BRL"]
-    private let languages: [(String, String)] = [
-        ("en", "English"), ("ja", "日本語"), ("zh", "中文"),
-    ]
+    private let languages = ["en", "ja", "zh"]
 
     var body: some View {
         VStack {
@@ -78,8 +76,8 @@ struct WelcomeView: View {
                 .foregroundStyle(.tertiary)
 
             Picker(viewModel.loc("Language"), selection: $selectedLanguage) {
-                ForEach(languages, id: \.0) { code, name in
-                    Text(name).tag(code)
+                ForEach(languages, id: \.self) { code in
+                    Text(viewModel.languageDisplayName(for: code)).tag(code)
                 }
             }
             .pickerStyle(.segmented)

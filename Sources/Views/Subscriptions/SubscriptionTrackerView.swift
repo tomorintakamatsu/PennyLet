@@ -187,7 +187,7 @@ struct SubscriptionTrackerView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.system(size: 8))
-                        Text("\(viewModel.loc("Renews")) \(renewal.formatted(.relative(presentation: .named)))")
+                        Text("\(viewModel.loc("Renews")) \(renewal.formatted(.relative(presentation: .named).locale(viewModel.appLocale)))")
                     }
                     .font(.caption2)
                     .foregroundStyle(.tertiary)

@@ -1113,6 +1113,29 @@ final class AppViewModel {
         }
     }
 
+    func languageDisplayName(for code: String) -> String {
+        switch language {
+        case "ja":
+            switch code {
+            case "ja": return "日本語"
+            case "zh": return "簡体字中国語"
+            default: return "英語"
+            }
+        case "zh":
+            switch code {
+            case "ja": return "日语"
+            case "zh": return "简体中文"
+            default: return "英语"
+            }
+        default:
+            switch code {
+            case "ja": return "Japanese"
+            case "zh": return "Simplified Chinese"
+            default: return "English"
+            }
+        }
+    }
+
     // MARK: - Localization
 
     var homeTab: String {
@@ -1127,8 +1150,18 @@ final class AppViewModel {
     var aiTab: String {
         switch language { case "ja": return "AI"; case "zh": return "AI"; default: return "AI" }
     }
+    var moreTab: String {
+        switch language { case "ja": return "その他"; case "zh": return "更多"; default: return "More" }
+    }
     var healthTab: String {
         switch language { case "ja": return "分析"; case "zh": return "分析"; default: return "Health" }
+    }
+    var appLocale: Locale {
+        switch language {
+        case "ja": return Locale(identifier: "ja_JP")
+        case "zh": return Locale(identifier: "zh_Hans")
+        default: return Locale(identifier: "en_US")
+        }
     }
     var settingsTitle: String {
         switch language { case "ja": return "設定"; case "zh": return "设置"; default: return "Settings" }
