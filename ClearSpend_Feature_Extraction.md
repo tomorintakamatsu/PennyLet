@@ -230,7 +230,7 @@ Processing pipeline:
 - Image resizing and JPEG compression.
 - Apple Vision OCR.
 - OCR language adaptation for English, Japanese, and Simplified Chinese.
-- AI extraction through Base44 LLM endpoint.
+- AI extraction through legacy backend LLM endpoint.
 - Structured JSON response for receipt items, category, and merchant.
 
 Receipt extraction targets:
@@ -533,7 +533,7 @@ Privacy-oriented product language found in app:
 
 Important caveat:
 
-- The code still contains Base44 backend and LLM calls for auth, AI, history saving, and receipt/voice parsing. If marketing says "fully offline" or "never leaves your device," that would be inaccurate.
+- The code still contains legacy backend backend and LLM calls for auth, AI, history saving, and receipt/voice parsing. If marketing says "fully offline" or "never leaves your device," that would be inaccurate.
 
 Safer wording:
 
@@ -675,12 +675,12 @@ Promotional angles:
 
 ## Backend And AI Infrastructure
 
-Base44 API constants:
+legacy backend API constants:
 
 - App ID: 69fade1d8bd803e56de0b85a.
-- Base URL: https://clear-spend-1.base44.app/api/apps/{appId}.
+- Base URL: https://removed-legacy-backend.example/api/apps/{appId}.
 
-Base44Client supports:
+legacy backendClient supports:
 
 - Entity CRUD.
 - Login.
@@ -710,7 +710,7 @@ Current local-first behavior:
 
 Important caveat:
 
-- Some mutation paths still call Base44, such as addCustomCategory, addGoal, updateGoalAmount, deleteGoal, deleteAnalysisHistory, AI history creation. This suggests the app is mid-transition between server-backed and local-first behavior.
+- Some mutation paths still call legacy backend, such as addCustomCategory, addGoal, updateGoalAmount, deleteGoal, deleteAnalysisHistory, AI history creation. This suggests the app is mid-transition between server-backed and local-first behavior.
 
 ## App Store / Compliance Notes
 
@@ -754,7 +754,7 @@ These appear well-supported by code:
 
 Avoid:
 
-- "Fully offline" because AI, auth, receipt extraction, and some data/history paths call Base44.
+- "Fully offline" because AI, auth, receipt extraction, and some data/history paths call legacy backend.
 - "No data ever leaves your device" because AI features call backend LLM endpoints.
 - "Automatic AI analysis runs in the background" unless scheduling is wired before launch.
 - "Voice input is available" unless VoiceInputView is exposed in the UI.
