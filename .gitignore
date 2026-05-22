@@ -1,0 +1,9 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+
+# Local backend secrets and generated Cloudflare files
+.dev.vars
+.wrangler/
+node_modules/
