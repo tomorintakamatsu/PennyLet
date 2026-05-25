@@ -1,0 +1,358 @@
+const MAX_BODY_BYTES = 80_000;
+const MAX_PROMPT_CHARS = 50_000;
+const PRIMARY_PROVIDER_TIMEOUT_MS = 45_000;
+const FALLBACK_PROVIDER_TIMEOUT_MS = 35_000;
+const STRUCTURED_MAX_TOKENS = 850;
+const RECEIPT_MAX_TOKENS = 2200;
+const TEXT_MAX_TOKENS = 600;
+const STRUCTURED_TOOL_NAME = "return_pennylet_result";
+const STANDARD_MODEL_FALLBACK = "deepseek-v4-flash";
+const PRO_MODEL_FALLBACK = "deepseek-v4-pro";
+const FINANCE_ACCURACY_RULES = [
+  "Accuracy rules:",
+  "- The app provides the user's budget, transaction, merchant, category, date, goal, and pace evidence. Treat it as the only source of truth.",
+  "- Never invent transactions, merchants, income, categories, dates, goals, percentages, or forecasts that are not supported by the prompt.",
+  "- When making a claim, ground it in a specific amount, merchant, category, date range, percentage, or transaction from the prompt.",
+  "- If the data is too thin, state the limitation plainly and give the best useful next step from the available evidence.",
+  "- Keep outputs short, practical, and non-judgmental. Avoid generic financial advice.",
+  "- For forecasts, stay close to app-provided baselines unless a concrete category or merchant pattern justifies an adjustment."
+].join("\n");
+
+export default {
+  async fetch(request, env) {
+    const requestId = request.headers.get("X-Request-Id") || crypto.randomUUID();
+
+    try {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204 });
+      }
+
+      const url = new URL(request.url);
+      if (request.method !== "POST" || url.pathname !== "/invoke-llm") {
+        return jsonResponse({ error: "Not found", request_id: requestId }, 404);
+      }
+
+      const clientId = request.headers.get("X-ClearSpend-Client");
+
+      if (clientId !== env.CLEARSPEND_CLIENT_ID) {
+        return jsonResponse({ error: "Unauthorized", request_id: requestId }, 401);
+      }
+
+      const contentLength = Number(request.headers.get("content-length") ?? "0");
+      if (contentLength > MAX_BODY_BYTES) {
+        return jsonResponse({ error: "Request is too large", request_id: requestId }, 413);
+      }
+
+      const body = await request.json();
+      const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+      const responseJsonSchema = body.response_json_schema;
+      const modelTier = body.model_tier === "pro" ? "pro" : "standard";
+
+      if (!prompt) {
+        return jsonResponse({ error: "Prompt is required", request_id: requestId }, 400);
+      }
+
+      if (prompt.length > MAX_PROMPT_CHARS) {
+        return jsonResponse({ error: "Prompt is too large", request_id: requestId }, 413);
+      }
+
+      const content = await invokeDeepSeek(env, prompt, responseJsonSchema, modelTier);
+
+      if (!content) {
+        return jsonResponse({ error: "Empty AI response", request_id: requestId }, 502);
+      }
+
+      return new Response(content.trim(), {
+        status: 200,
+        headers: {
+          "Content-Type": responseJsonSchema ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+          "X-Request-Id": requestId
+        }
+      });
+    } catch (error) {
+      const status = error instanceof HttpError ? error.status : 500;
+      const publicMessage = error instanceof HttpError ? error.message : "AI request failed";
+
+      console.error(JSON.stringify({
+        request_id: requestId,
+        status,
+        message: error instanceof Error ? error.message : "Unknown error"
+      }));
+
+      return jsonResponse({ error: publicMessage, message: publicMessage, request_id: requestId }, status);
+    }
+  }
+};
+
+async function invokeDeepSeek(env, prompt, responseJsonSchema, modelTier) {
+  const primaryMode = responseJsonSchema
+    ? (isReceiptSchema(responseJsonSchema) ? "tool" : "json")
+    : "text";
+  const primaryModel = modelForTier(env, modelTier);
+  const fallbackModel = standardModel(env);
+
+  try {
+    return await invokeModel(env, prompt, responseJsonSchema, primaryMode, primaryModel, PRIMARY_PROVIDER_TIMEOUT_MS);
+  } catch (error) {
+    if (modelTier !== "pro" || primaryModel === fallbackModel || !isRetryableProviderError(error)) {
+      throw error;
+    }
+
+    console.error(JSON.stringify({
+      provider_status: "fallback_model",
+      from_tier: modelTier,
+      reason: error instanceof Error ? error.message : "Unknown error"
+    }));
+
+    return invokeModel(env, prompt, responseJsonSchema, primaryMode, fallbackModel, FALLBACK_PROVIDER_TIMEOUT_MS);
+  }
+}
+
+async function invokeModel(env, prompt, responseJsonSchema, primaryMode, model, timeoutMs) {
+  const payload = buildPayload(env, prompt, responseJsonSchema, primaryMode, model);
+  let result;
+
+  try {
+    result = await requestDeepSeek(env, payload, timeoutMs);
+  } catch (error) {
+    if (!responseJsonSchema || error?.status === 504) {
+      throw error;
+    }
+
+    console.error(JSON.stringify({
+      provider_status: "primary_failed",
+      mode: primaryMode,
+      fallback: primaryMode === "tool" ? "json" : "tool",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }));
+
+    const fallbackMode = primaryMode === "tool" ? "json" : "tool";
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
+    const fallbackResult = await requestDeepSeek(env, fallbackPayload, timeoutMs);
+    if (fallbackResult.content) {
+      return fallbackResult.content;
+    }
+    throw error;
+  }
+
+  if (result.content) {
+    return result.content;
+  }
+
+  console.error(JSON.stringify({
+    provider_status: "empty_content",
+    finish_reason: result.finishReason ?? "unknown",
+    mode: primaryMode
+  }));
+
+  if (responseJsonSchema) {
+    const fallbackMode = primaryMode === "tool" ? "json" : "tool";
+    const fallbackPayload = buildPayload(env, prompt, responseJsonSchema, fallbackMode, model);
+    const fallbackResult = await requestDeepSeek(env, fallbackPayload, timeoutMs);
+    if (fallbackResult.content) {
+      return fallbackResult.content;
+    }
+
+    console.error(JSON.stringify({
+      provider_status: "empty_content",
+      finish_reason: fallbackResult.finishReason ?? "unknown",
+      mode: fallbackMode
+    }));
+  }
+
+  throw new HttpError("AI returned an empty response. Please try again.", 502);
+}
+
+function buildPayload(env, prompt, responseJsonSchema, mode, model) {
+  const messages = [
+    {
+      role: "system",
+      content: buildSystemPrompt(responseJsonSchema, mode)
+    },
+    {
+      role: "user",
+      content: prompt
+    }
+  ];
+
+  const payload = {
+    model,
+    messages,
+    thinking: { type: "disabled" },
+    temperature: 0.1,
+    top_p: 0.75,
+    max_tokens: maxTokensFor(responseJsonSchema)
+  };
+
+  if (responseJsonSchema && mode === "tool") {
+    payload.tools = [{
+      type: "function",
+      function: {
+        name: STRUCTURED_TOOL_NAME,
+        description: "Return the structured PennyLet result requested by the app.",
+        parameters: responseJsonSchema
+      }
+    }];
+    payload.tool_choice = {
+      type: "function",
+      function: { name: STRUCTURED_TOOL_NAME }
+    };
+  } else if (responseJsonSchema && mode === "json") {
+    payload.response_format = { type: "json_object" };
+  }
+
+  return payload;
+}
+
+function modelForTier(env, modelTier) {
+  if (modelTier === "pro") {
+    return env.DEEPSEEK_PRO_MODEL || env.DEEPSEEK_MODEL || PRO_MODEL_FALLBACK;
+  }
+  return standardModel(env);
+}
+
+function standardModel(env) {
+  return env.DEEPSEEK_STANDARD_MODEL || STANDARD_MODEL_FALLBACK;
+}
+
+function isRetryableProviderError(error) {
+  return error instanceof HttpError && (error.status === 502 || error.status === 503 || error.status === 504);
+}
+
+async function requestDeepSeek(env, payload, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("Provider timed out"), timeoutMs);
+  let response;
+
+  try {
+    response = await fetch(`${env.DEEPSEEK_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Authorization": `Bearer ${env.AI_PROVIDER_API_KEY || env.DEEPSEEK_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new HttpError("AI request timed out. Please try again.", 504);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const text = await response.text();
+  const data = parseJson(text);
+
+  if (!response.ok) {
+    console.error(JSON.stringify({
+      provider_status: response.status,
+      provider_error: data?.error?.message ?? "Provider request failed"
+    }));
+    throw new HttpError("AI service is busy. Please try again.", 502);
+  }
+
+  return extractContent(data);
+}
+
+function extractContent(data) {
+  const choice = data?.choices?.[0];
+  const message = choice?.message;
+  const toolArguments = message?.tool_calls?.[0]?.function?.arguments;
+  const content = message?.content;
+
+  if (typeof toolArguments === "string" && toolArguments.trim()) {
+    return { content: toolArguments.trim(), finishReason: choice?.finish_reason };
+  }
+
+  if (typeof content === "string" && content.trim()) {
+    return { content: content.trim(), finishReason: choice?.finish_reason };
+  }
+
+  return { content: null, finishReason: choice?.finish_reason };
+}
+
+function buildSystemPrompt(responseJsonSchema, mode) {
+  if (!responseJsonSchema) {
+    return [
+      "You are PennyLet's financial assistant.",
+      "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
+      "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
+      "Be concise, practical, and accurate.",
+      FINANCE_ACCURACY_RULES
+    ].join("\n");
+  }
+
+  const schemaText = JSON.stringify(responseJsonSchema);
+  const receiptSchema = isReceiptSchema(responseJsonSchema);
+
+  if (mode === "tool") {
+    return [
+      "You are PennyLet's financial assistant.",
+      "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
+      "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
+      FINANCE_ACCURACY_RULES,
+      receiptSchema
+        ? "Extract only visible receipt line items and keep merchant/category values concise."
+        : "Keep strings concise and specific. Each string should be grounded in provided evidence. Do not add fields that are not in the schema.",
+      `Call the ${STRUCTURED_TOOL_NAME} tool with the requested structured result.`
+    ].join("\n");
+  }
+
+  return [
+    "You are PennyLet's financial assistant.",
+    "Use the user's actual transaction data, budgets, merchants, categories, dates, and goals.",
+    "Avoid generic personal-finance advice unless it is tied to a specific number or pattern in the provided data.",
+    FINANCE_ACCURACY_RULES,
+    receiptSchema
+      ? "Extract only visible receipt line items and keep merchant/category values concise."
+      : "Keep the full JSON response concise: short strings, no extra fields, no long explanations. Ground every claim in provided evidence.",
+    "Return only valid JSON. Do not include markdown, code fences, or explanatory text.",
+    "Use this JSON schema as the required output shape:",
+    schemaText
+  ].join("\n");
+}
+
+function maxTokensFor(responseJsonSchema) {
+  if (!responseJsonSchema) {
+    return TEXT_MAX_TOKENS;
+  }
+
+  if (isReceiptSchema(responseJsonSchema)) {
+    return RECEIPT_MAX_TOKENS;
+  }
+
+  return STRUCTURED_MAX_TOKENS;
+}
+
+function isReceiptSchema(responseJsonSchema) {
+  const schemaText = JSON.stringify(responseJsonSchema);
+  return schemaText.includes('"items"') && schemaText.includes('"price"');
+}
+
+function jsonResponse(payload, status) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8"
+    }
+  });
+}
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+class HttpError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}

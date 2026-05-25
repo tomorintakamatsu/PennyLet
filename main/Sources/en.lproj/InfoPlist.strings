@@ -1,0 +1,2 @@
+CFBundleDisplayName = "PennyLet";
+NSCameraUsageDescription = "PennyLet uses your camera to scan receipts.";

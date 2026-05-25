@@ -1,0 +1,2 @@
+CFBundleDisplayName = "PennyLet";
+NSCameraUsageDescription = "PennyLet 需要使用相机来扫描收据。";

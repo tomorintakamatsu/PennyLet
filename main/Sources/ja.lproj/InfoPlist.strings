@@ -1,0 +1,2 @@
+CFBundleDisplayName = "PennyLet";
+NSCameraUsageDescription = "PennyLetはレシートをスキャンするためにカメラを使用します。";

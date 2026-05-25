@@ -1,0 +1,77 @@
+{
+  "products" : [
+    {
+      "displayName" : "PennyLet Pro Monthly",
+      "familyShareable" : false,
+      "internalID" : "clearspend_pro_monthly_3",
+      "productType" : "AutoRenewable",
+      "referenceName" : "PennyLet Pro Monthly",
+      "subscriptionGroupID" : "D33B4606",
+      "subscriptionPeriod" : {
+        "unit" : "P1M",
+        "numberOfUnits" : 1
+      },
+      "subscriptionGroupDisplayName" : "PennyLet Pro",
+      "localizations" : [
+        {
+          "displayName" : "PennyLet Pro Monthly",
+          "description" : "Monthly access to all Pro features"
+        }
+      ],
+      "name" : "Monthly",
+      "locales" : [
+        {
+          "locale" : "en_US",
+          "displayName" : "PennyLet Pro Monthly",
+          "description" : "Monthly access to all Pro features"
+        }
+      ]
+    },
+    {
+      "displayName" : "PennyLet Pro Yearly",
+      "familyShareable" : false,
+      "internalID" : "clearspend_pro_yearly_3",
+      "productType" : "AutoRenewable",
+      "referenceName" : "PennyLet Pro Yearly",
+      "subscriptionGroupID" : "D33B4606",
+      "subscriptionPeriod" : {
+        "unit" : "P1Y",
+        "numberOfUnits" : 1
+      },
+      "subscriptionGroupDisplayName" : "PennyLet Pro",
+      "localizations" : [
+        {
+          "displayName" : "PennyLet Pro Yearly",
+          "description" : "Yearly access to all Pro features"
+        }
+      ],
+      "name" : "Yearly",
+      "locales" : [
+        {
+          "locale" : "en_US",
+          "displayName" : "PennyLet Pro Yearly",
+          "description" : "Yearly access to all Pro features"
+        }
+      ]
+    }
+  ],
+  "subscriptionGroups" : [
+    {
+      "id" : "D33B4606",
+      "localizations" : [
+        {
+          "displayName" : "PennyLet Pro"
+        }
+      ],
+      "name" : "PennyLet Pro",
+      "subscriptions" : [
+        "clearspend_pro_monthly_3",
+        "clearspend_pro_yearly_3"
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

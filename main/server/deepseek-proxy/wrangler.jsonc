@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clearspend-ai-proxy",
+  "main": "src/index.js",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "CLEARSPEND_CLIENT_ID": "clearspend-ios",
+    "DEEPSEEK_BASE_URL": "https://api.deepseek.com",
+    "DEEPSEEK_STANDARD_MODEL": "deepseek-v4-flash",
+    "DEEPSEEK_PRO_MODEL": "deepseek-v4-pro"
+  }
+}
