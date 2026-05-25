@@ -1,4 +1,4 @@
-name: Pennylet
+name: PennyLet
 options:
   bundleIdPrefix: com.pennylet
   deploymentTarget:
@@ -23,7 +23,7 @@ settings:
     GENERATE_INFOPLIST_FILE: true
 
 targets:
-  Pennylet:
+  PennyLet:
     type: application
     platform: iOS
     sources:
@@ -37,7 +37,7 @@ targets:
         CODE_SIGN_IDENTITY: "iPhone Developer"
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
         DEVELOPMENT_TEAM: 776XFU3GK7
-        CODE_SIGN_ENTITLEMENTS: Pennylet.entitlements
+        CODE_SIGN_ENTITLEMENTS: PennyLet.entitlements
     preBuildScripts:
       - name: "SwiftLint"
         script: |
@@ -48,10 +48,10 @@ targets:
         inputFiles: []
 
 schemes:
-  Pennylet:
+  PennyLet:
     build:
       targets:
-        Pennylet: all
+        PennyLet: all
     run:
       config: Debug
     test:

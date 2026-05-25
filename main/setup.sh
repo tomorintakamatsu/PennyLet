@@ -30,7 +30,7 @@ echo "Generating Xcode project..."
 xcodegen generate
 
 echo ""
-echo "✓  Project generated: Pennylet.xcodeproj"
+echo "✓  Project generated: PennyLet.xcodeproj"
 echo ""
-echo "  To open:  open Pennylet.xcodeproj"
+echo "  To open:  open PennyLet.xcodeproj"
 echo ""

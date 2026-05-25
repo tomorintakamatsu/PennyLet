@@ -26,7 +26,7 @@ The clearest positioning from the codebase:
 - Current build version: 3.
 - Bundle identifier: com.clearspend.tomorin.app.
 - Project generation: XcodeGen via project.yml.
-- Xcode target/scheme: one application target named Pennylet internally, with PennyLet as the public display name.
+- Xcode target/scheme: one application target named PennyLet, with PennyLet as the public display name.
 - Signing: automatic signing, Apple Sign In entitlement enabled.
 - URL scheme: pennylet.
 - Assets:
